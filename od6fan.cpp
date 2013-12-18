@@ -42,7 +42,7 @@
 #define AMDVENDORID (1002)
 #define ADL_WARNING_NO_DATA -100
 
-static int adapter, fanspeed, coreclock, memclock, ptune;
+static int adapter, fanspeed, coreclock, memclock, mincoreclock, minmemclock, ptune;
 
 // Definitions of the used function pointers. Add more if you use other ADL APIs
 typedef int ( *ADL_MAIN_CONTROL_CREATE )(ADL_MAIN_MALLOC_CALLBACK, int );
@@ -320,8 +320,8 @@ static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
 	}
 
 	printf("The GPU Engine clock range is %d - %d MHz with step of %d MHz\n",
-	       overdriveParameters.sEngineClock.iMin /100,
-	       overdriveParameters.sEngineClock.iMax /100,
+	       overdriveParameters.sEngineClock.iMin / 100,
+	       overdriveParameters.sEngineClock.iMax / 100,
 	       overdriveParameters.sEngineClock.iStep / 100);
 
 	printf("The GPU Memory clock range is %d - %d MHz with step of %d MHz\n",
@@ -340,7 +340,7 @@ static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
 	{
 		//Overdrive5 GPUs support few performance levels. Application can set distinct engine clocks, memory clocks, core voltage
 		//for each of the performance levels. Performance level with index 0 corresponds to lowest performance system state.
-		//Performance level with highest index corresponds to highest performance system state – 3D game playing for example.
+		//Performance level with highest index corresponds to highest performance system state - 3D game playing for example.
 		//Users are usually interested in overclocking highest index performance level.
 
 		printf("The GPU supports %d performance levels:\n", overdriveParameters.iNumberOfPerformanceLevels);
@@ -410,12 +410,10 @@ static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
 
 		if (coreclock >= 0)
 		{
-			if ((coreclock < (overdriveParameters.iNumberOfPerformanceLevels == 1) ? overdriveParameters.sEngineClock.iMin /100 :
-			     performanceLevels->aLevels[overdriveParameters.iNumberOfPerformanceLevels - 2].iEngineClock / 100) ||
+			if ((coreclock < overdriveParameters.sEngineClock.iMin / 100) ||
 			    (coreclock > overdriveParameters.sEngineClock.iMax / 100)) {
 				printf("Error: Engine Clock range %d - %d MHz\n",
-				       (overdriveParameters.iNumberOfPerformanceLevels == 1) ? overdriveParameters.sEngineClock.iMin /100 :
-				       performanceLevels->aLevels[overdriveParameters.iNumberOfPerformanceLevels - 2].iEngineClock / 100,
+				       overdriveParameters.sEngineClock.iMin / 100,
 				       overdriveParameters.sEngineClock.iMax / 100);
 				exit(1);
 			}
@@ -441,12 +439,10 @@ static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
 		}
 		if (memclock >= 0)
 		{
-			if ((memclock < (overdriveParameters.iNumberOfPerformanceLevels == 1)? overdriveParameters.sMemoryClock.iMin /100 :
-			     performanceLevels->aLevels[overdriveParameters.iNumberOfPerformanceLevels - 2].iMemoryClock / 100) ||
+			if ((memclock < overdriveParameters.sMemoryClock.iMin / 100) ||
 			    (memclock > overdriveParameters.sMemoryClock.iMax / 100)) {
 				printf("Error: Memory Clock range %d - %d MHz\n",
-				       (overdriveParameters.iNumberOfPerformanceLevels == 1)? overdriveParameters.sMemoryClock.iMin /100 :
-				       performanceLevels->aLevels[overdriveParameters.iNumberOfPerformanceLevels - 2].iMemoryClock / 100,
+				       overdriveParameters.sMemoryClock.iMin / 100,
 				       overdriveParameters.sMemoryClock.iMax / 100);
 				exit(1);
 			}
@@ -654,7 +650,7 @@ static void Overdrive6Control(int adapterId, HINSTANCE hDLL)
 	if (ADL_OD6_CAPABILITY_SCLK_CUSTOMIZATION == (od6Capabilities.iCapabilities & ADL_OD6_CAPABILITY_SCLK_CUSTOMIZATION))
 	{
 		printf("Range of clock supported by GPU core: %d - %d MHz with step of %d MHz\n",
-		       od6Capabilities.sEngineClockRange.iMin /100,
+		       od6Capabilities.sEngineClockRange.iMin / 100,
 		       od6Capabilities.sEngineClockRange.iMax / 100,
 		       od6Capabilities.sEngineClockRange.iStep / 100);
 
@@ -665,7 +661,7 @@ static void Overdrive6Control(int adapterId, HINSTANCE hDLL)
 	if (ADL_OD6_CAPABILITY_MCLK_CUSTOMIZATION == (od6Capabilities.iCapabilities & ADL_OD6_CAPABILITY_MCLK_CUSTOMIZATION))
 	{
 		printf("Range of supported memory clock: %d - %d MHz with step of %d MHz\n",
-		       od6Capabilities.sMemoryClockRange.iMin /100,
+		       od6Capabilities.sMemoryClockRange.iMin / 100,
 		       od6Capabilities.sMemoryClockRange.iMax / 100,
 		       od6Capabilities.sMemoryClockRange.iStep / 100);
 
@@ -775,16 +771,19 @@ static void Overdrive6Control(int adapterId, HINSTANCE hDLL)
 
 	if (ADL_OD6_CAPABILITY_SCLK_CUSTOMIZATION == (od6Capabilities.iCapabilities & ADL_OD6_CAPABILITY_SCLK_CUSTOMIZATION))
 	{
-		if (coreclock >= 0)
+		if (coreclock >= 0 || mincoreclock >= 0)
 		{
+			if (mincoreclock < 0) mincoreclock = customStateInfo->aLevels[0].iEngineClock / 100;
+			if (coreclock < 0) coreclock = customStateInfo->aLevels[1].iEngineClock / 100;
 			//ADL_Overdrive6_State_Set allows changing the effective range of memory and core clocks by setting performance level 0 clocks to desired
 			//minimum value and setting performance level 1 clocks to desired maximum. In reality user rarely needs to change minimum value.
 			//Therefore this example demonstrates only changing the upper range boundary. The upper range value has to be greater then current
 			//minimum value (stored in performance level 0), but less than highest clock supported by the ASIC
-			if (coreclock < customStateInfo->aLevels[0].iEngineClock / 100 || coreclock > od6Capabilities.sEngineClockRange.iMax /100) {
-				printf("Error: Core clock range %d - %d MHz\n", customStateInfo->aLevels[0].iEngineClock / 100, od6Capabilities.sEngineClockRange.iMax /100);
+			if (mincoreclock < od6Capabilities.sEngineClockRange.iMin / 100 || coreclock > od6Capabilities.sEngineClockRange.iMax / 100) {
+				printf("Error: Core clock range %d - %d MHz\n", od6Capabilities.sEngineClockRange.iMin / 100, od6Capabilities.sEngineClockRange.iMax / 100);
 				exit(1);
 			}
+			customStateInfo->aLevels[0].iEngineClock = mincoreclock * 100;
 			customStateInfo->aLevels[1].iEngineClock = coreclock * 100;
 
 			if (ADL_OK != ADL_Overdrive6_State_Set(adapterId, ADL_OD6_SETSTATE_PERFORMANCE, customStateInfo)) // This is the only value that is currently accepted
@@ -800,16 +799,19 @@ static void Overdrive6Control(int adapterId, HINSTANCE hDLL)
 
 	if (ADL_OD6_CAPABILITY_MCLK_CUSTOMIZATION == (od6Capabilities.iCapabilities & ADL_OD6_CAPABILITY_MCLK_CUSTOMIZATION))
 	{
-		if (memclock >= 0)
+		if (memclock >= 0 || minmemclock >= 0)
 		{
+			if (minmemclock < 0) minmemclock = customStateInfo->aLevels[0].iMemoryClock / 100;
+			if (memclock < 0) memclock = customStateInfo->aLevels[1].iMemoryClock / 100;
 			//ADL_Overdrive6_State_Set allows changing the effective range of memory and core clocks by setting performance level 0 clocks to desired
 			//minimum value and setting performance level 1 clocks to desired maximum. In reality user rarely needs to change minimum value.
 			//Therefore this example demonstrates only changing the upper range boundary. The upper range value has to be greater then current
 			//minimum value (stored in performance level 0), but less than highest clock supported by the ASIC
-			if (memclock < customStateInfo->aLevels[0].iMemoryClock / 100 || memclock > od6Capabilities.sMemoryClockRange.iMax /100) {
-				printf("Error: Memory clock range %d - %d MHz\n", customStateInfo->aLevels[0].iMemoryClock / 100, od6Capabilities.sMemoryClockRange.iMax /100);
+			if (minmemclock < od6Capabilities.sMemoryClockRange.iMin / 100 || memclock > od6Capabilities.sMemoryClockRange.iMax / 100) {
+				printf("Error: Memory clock range %d - %d MHz\n", od6Capabilities.sMemoryClockRange.iMin / 100, od6Capabilities.sMemoryClockRange.iMax / 100);
 				exit(1);
 			}
+			customStateInfo->aLevels[0].iMemoryClock = minmemclock * 100;
 			customStateInfo->aLevels[1].iMemoryClock = memclock * 100;
 
 			if (ADL_OK != ADL_Overdrive6_State_Set(adapterId, ADL_OD6_SETSTATE_PERFORMANCE, customStateInfo)) // This is the only value that is currently accepted
@@ -886,9 +888,9 @@ int main(int argc, _TCHAR* argv[])
 	int iOverdriveVersion = 0;
 	char c;
 
-	adapter = fanspeed = coreclock = memclock = ptune = -9999;
+	adapter = fanspeed = coreclock = memclock = mincoreclock = minmemclock = ptune = -9999;
 
-	while ((c = getopt(argc, argv, "a:f:c:m:p:h")) != -1) {
+	while ((c = getopt(argc, argv, "a:f:c:C:m:M:p:h")) != -1) {
 		switch (c) {
 		case 'h':
 			usage(argv[0]);
@@ -904,6 +906,12 @@ int main(int argc, _TCHAR* argv[])
 			break;
 		case 'm':
 			memclock = atoi(optarg);
+			break;
+		case 'C':
+			mincoreclock = atoi(optarg);
+			break;
+		case 'M':
+			minmemclock = atoi(optarg);
 			break;
 		case 'p':
 			ptune = atoi(optarg);
