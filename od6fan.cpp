@@ -359,7 +359,7 @@ static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
 
 		for (int i = 0; i < overdriveParameters.iNumberOfPerformanceLevels; i++)
 		{
-			printf("Performance level %d - Default Engine Clock:%d MHz, Default Memory Clock:%d MHz, Default Core Voltage:%d mV\n",
+			printf("Performance level %d\n\tDefault Engine Clock:%d MHz\n\tDefault Memory Clock:%d MHz\n\tDefault Core Voltage:%d mV\n",
 			       i,
 			       performanceLevels->aLevels[i].iEngineClock / 100,
 			       performanceLevels->aLevels[i].iMemoryClock / 100,
@@ -377,7 +377,7 @@ static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
 
 		for (int i = 0; i < overdriveParameters.iNumberOfPerformanceLevels; i++)
 		{
-			printf("Performance level %d - Current Engine Clock:%d MHz, Current Memory Clock:%d MHz, Current Core Voltage:%d mV\n",
+			printf("Performance level %d\n\tCurrent Engine Clock:%d MHz\n\tCurrent Memory Clock:%d MHz\n\tCurrent Core Voltage:%d mV\n",
 			       i,
 			       performanceLevels->aLevels[i].iEngineClock / 100,
 			       performanceLevels->aLevels[i].iMemoryClock / 100,
@@ -439,7 +439,7 @@ static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
 					exit(1);
 				}
 
-				for (int i = 0; i < overdriveParameters.iNumberOfPerformanceLevels; i++)
+				for (int i = 1; i < overdriveParameters.iNumberOfPerformanceLevels; i++)
 				{
 					printf("Performance level %d - New Engine Clock:%d MHz\n",
 					       i,
@@ -478,7 +478,7 @@ static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
 					exit(1);
 				}
 
-				for (int i = 0; i < overdriveParameters.iNumberOfPerformanceLevels; i++)
+				for (int i = 1; i < overdriveParameters.iNumberOfPerformanceLevels; i++)
 				{
 					printf("Performance level %d - New Memory Clock:%d MHz\n",
 					       i,
