@@ -857,7 +857,15 @@ static void Overdrive6Control(int adapterId, HINSTANCE hDLL)
 }
 
 static void usage(char *name) {
-	printf("Usage: %s [-a <adapter] [-f <fanspeed>] [-c <core clock>] [-m <mem clock>] [-p <powertune level>]\n", name);
+	printf("Get/set AMD GPU overdrive5/overdrive6 parameters. If -a is omitted, setting(s)\nwill apply to ALL compatible adapters.\n"
+	       "Usage: %s [option <arg>] [...]\n"
+	       "\t-a <adapter>\n"
+	       "\t-f <fanspeed>\n"
+	       "\t-C <min core clock>\n"
+	       "\t-c <max core clock>\n"
+	       "\t-M <min mem clock>\n"
+	       "\t-m <max mem clock>\n"
+	       "\t-p <powertune level>\n", name);
 	exit(0);
 }
 
