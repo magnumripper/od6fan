@@ -396,7 +396,7 @@ static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
 	printf("Current Engine Clock: %d MHz\n", activity.iEngineClock / 100);
 	printf("Current Memory Clock: %d MHz\n", activity.iMemoryClock / 100);
 	printf("Current Core Voltage: %d mV\n", activity.iVddc);
-	printf("Current Performance Level: %d\n", activity.iCurrentPerformanceLevel);
+	printf("Current Performance Level: %d\n", activity.iCurrentPerformanceLevel - 1);
 
 	if (overdriveParameters.iActivityReportingSupported)
 	{
@@ -427,15 +427,25 @@ static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
 				printf("Failed to set new Engine Clock.\n");
 				exit(1);
 			}
-			//Getting new values
-			ADLPMActivity activity = {0};
-			activity.iSize = sizeof(ADLPMActivity);
-			if (ADL_OK != ADL_Overdrive5_CurrentActivity_Get(adapterId, &activity))
-			{
-				printf("Failed to get new GPU activity.\n");
-				exit(1);
+			if (overdriveParameters.iNumberOfPerformanceLevels > 0) {
+				int size = sizeof(ADLODPerformanceLevels) + sizeof(ADLODPerformanceLevel) * (overdriveParameters.iNumberOfPerformanceLevels - 1);
+				void* performanceLevelsBuffer = malloc(size);
+				memset(performanceLevelsBuffer, 0, size);
+				performanceLevels->iSize = size;
+
+				if (ADL_OK != ADL_Overdrive5_ODPerformanceLevels_Get(adapterId, 0 , performanceLevels))
+				{
+					printf("Failed to get information about new performance levels.\n");
+					exit(1);
+				}
+
+				for (int i = 0; i < overdriveParameters.iNumberOfPerformanceLevels; i++)
+				{
+					printf("Performance level %d - New Engine Clock:%d MHz\n",
+					       i,
+					       performanceLevels->aLevels[i].iEngineClock / 100);
+				}
 			}
-			printf("New Engine Clock: %d MHz\n", activity.iEngineClock / 100);
 		}
 		if (memclock >= 0)
 		{
@@ -456,15 +466,25 @@ static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
 				printf("Failed to set new Memory Clock.\n");
 				exit(1);
 			}
-			//Getting new values
-			ADLPMActivity activity = {0};
-			activity.iSize = sizeof(ADLPMActivity);
-			if (ADL_OK != ADL_Overdrive5_CurrentActivity_Get(adapterId, &activity))
-			{
-				printf("Failed to get new GPU activity.\n");
-				exit(1);
+			if (overdriveParameters.iNumberOfPerformanceLevels > 0) {
+				int size = sizeof(ADLODPerformanceLevels) + sizeof(ADLODPerformanceLevel) * (overdriveParameters.iNumberOfPerformanceLevels - 1);
+				void* performanceLevelsBuffer = malloc(size);
+				memset(performanceLevelsBuffer, 0, size);
+				performanceLevels->iSize = size;
+
+				if (ADL_OK != ADL_Overdrive5_ODPerformanceLevels_Get(adapterId, 0 , performanceLevels))
+				{
+					printf("Failed to get information about new performance levels.\n");
+					exit(1);
+				}
+
+				for (int i = 0; i < overdriveParameters.iNumberOfPerformanceLevels; i++)
+				{
+					printf("Performance level %d - New Memory Clock:%d MHz\n",
+					       i,
+					       performanceLevels->aLevels[i].iMemoryClock / 100);
+				}
 			}
-			printf("New Memory Clock: %d MHz\n", activity.iMemoryClock / 100);
 		}
 		if (powerControlSupported)
 		{
@@ -480,16 +500,12 @@ static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
 					printf("Failed to set new Power Control treshold.\n");
 					exit(1);
 				}
-				//Getting new values
-				ADLPMActivity activity = {0};
-				activity.iSize = sizeof(ADLPMActivity);
-				if (ADL_OK != ADL_Overdrive5_CurrentActivity_Get(adapterId, &activity))
+				if (ADL_OK != ADL_Overdrive5_PowerControl_Get(adapterId, &powerControlCurrent, &powerControlDefault))
 				{
-					printf("Failed to get new GPU activity.\n");
+					printf("Failed to get Power Control current value\n");
 					exit(1);
 				}
-				printf("New Core Voltage: %d mV\n", activity.iVddc);
-				printf("New Performance Level: %d\n", activity.iCurrentPerformanceLevel);
+				printf("New value of Power Control threshold is %d\n", powerControlCurrent);
 			}
 		}
 	}
