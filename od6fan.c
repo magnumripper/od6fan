@@ -8,19 +8,20 @@
 // Based on Overdrive_Sample.cpp from the SDK (v6)
 //
 // Link with -ldl
-// g++ od6fan.cpp -ldl -o od6fan
+// gcc od6fan.c -ldl -o od6fan
 
 #if defined(__linux__)
 #ifndef LINUX
 #define LINUX 1 // adl headers depend on this
 #endif
+#include <wchar.h>
 #include "adl_sdk.h"
 #include "adl_structures.h"
-#include <dlfcn.h> // dyopen, dlsym, dlclose
+#include <dlfcn.h> // dlopen, dlsym, dlclose
 #include <stdlib.h> // getenv, setenv
 #include <string.h> // memset
 #include <strings.h> // strcasecmp
-#include <unistd.h> // sleep, getopt
+#include <unistd.h> // getopt
 #endif
 
 #include <stdio.h>
@@ -102,7 +103,7 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 	ADLPowerControlInfo powerControlInfo = {0};
 	int powerControlCurrent = 0;
 	int powerControlDefault = 0;
-
+	int i, iThermalControllerIndex;
 
 	ADL_Overdrive5_ThermalDevices_Enum = (ADL_OVERDRIVE5_THERMALDEVICES_ENUM) dlsym(hDLL, "ADL_Overdrive5_ThermalDevices_Enum");
 	ADL_Overdrive5_ODParameters_Get = (ADL_OVERDRIVE5_ODPARAMETERS_GET) dlsym(hDLL, "ADL_Overdrive5_ODParameters_Get");
@@ -140,7 +141,7 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 	ADLThermalControllerInfo termalControllerInfo = {0};
 	termalControllerInfo.iSize = sizeof(ADLThermalControllerInfo);
 
-	for (int iThermalControllerIndex = 0; iThermalControllerIndex < 10; iThermalControllerIndex++)
+	for (iThermalControllerIndex = 0; iThermalControllerIndex < 10; iThermalControllerIndex++)
 	{
 		ADL_Err = ADL_Overdrive5_ThermalDevices_Enum(adapterId, iThermalControllerIndex, &termalControllerInfo);
 
@@ -320,7 +321,7 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 			exit(1);
 		}
 
-		for (int i = 0; i < overdriveParameters.iNumberOfPerformanceLevels; i++)
+		for (i = 0; i < overdriveParameters.iNumberOfPerformanceLevels; i++)
 		{
 			printf("Performance level %d\n\tDefault Engine Clock:%d MHz\n\tDefault Memory Clock:%d MHz\n\tDefault Core Voltage:%d mV\n",
 			       i,
@@ -338,7 +339,7 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 			exit(1);
 		}
 
-		for (int i = 0; i < overdriveParameters.iNumberOfPerformanceLevels; i++)
+		for (i = 0; i < overdriveParameters.iNumberOfPerformanceLevels; i++)
 		{
 			printf("Performance level %d\n\tCurrent Engine Clock:%d MHz\n\tCurrent Memory Clock:%d MHz\n\tCurrent Core Voltage:%d mV\n",
 			       i,
@@ -402,7 +403,7 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 					exit(1);
 				}
 
-				for (int i = 1; i < overdriveParameters.iNumberOfPerformanceLevels; i++)
+				for (i = 1; i < overdriveParameters.iNumberOfPerformanceLevels; i++)
 				{
 					printf("Performance level %d - New Engine Clock:%d MHz\n",
 					       i,
@@ -441,7 +442,7 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 					exit(1);
 				}
 
-				for (int i = 1; i < overdriveParameters.iNumberOfPerformanceLevels; i++)
+				for (i = 1; i < overdriveParameters.iNumberOfPerformanceLevels; i++)
 				{
 					printf("Performance level %d - New Memory Clock:%d MHz\n",
 					       i,
