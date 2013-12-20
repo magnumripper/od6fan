@@ -1,25 +1,18 @@
-// Overdrive_Sample.cpp : Defines the entry point for the console application.
 //
-
-///
-/// Copyright (c) 2013 Advanced Micro Devices, Inc.
-
-/// THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
-/// EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
-/// WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
-
-/// \file Overdrive_Sample.cpp
-/// \brief C/C++ Overdrive Color sample application, based on ADL_Sample project
-///
-/// A sample test application to test Overdrive get functions
-/// Author: Ilia Blank
-
+// Overdrive5/6 control
+//
+// This software is Copyright (c) 2013 magnum, and it is hereby released
+// to the general public under the following terms:  Redistribution and use in
+// source and binary forms, with or without modification, are permitted.
+//
+// Based on Overdrive_Sample.cpp from the SDK (v6)
+//
 // Link with -ldl
 // g++ od6fan.cpp -ldl -o od6fan
 
 #if defined(__linux__)
 #ifndef LINUX
-#define LINUX 1 // morons
+#define LINUX 1 // adl headers depend on this
 #endif
 #include "adl_sdk.h"
 #include "adl_structures.h"
@@ -28,87 +21,57 @@
 #include <string.h> // memset
 #include <strings.h> // strcasecmp
 #include <unistd.h> // sleep, getopt
-
-#else
-
-#include <windows.h>
-#include <tchar.h>
-#include "adl_sdk.h"
 #endif
 
 #include <stdio.h>
 
-#define DEGC "\xc2\xb0" "C"
-#define AMDVENDORID (1002)
+#define DEGC "\xc2\xb0" "C" // UTF-8 degree sign, Celsius
 #define ADL_WARNING_NO_DATA -100
 
 static int adapter, fanspeed, coreclock, memclock, mincoreclock, minmemclock, ptune;
 
 // Definitions of the used function pointers. Add more if you use other ADL APIs
-typedef int ( *ADL_MAIN_CONTROL_CREATE )(ADL_MAIN_MALLOC_CALLBACK, int );
-typedef int ( *ADL_MAIN_CONTROL_DESTROY )();
-typedef int ( *ADL_ADAPTER_NUMBEROFADAPTERS_GET ) ( int* );
-typedef int ( *ADL_ADAPTER_ADAPTERINFO_GET ) ( LPAdapterInfo, int );
-typedef int ( *ADL_ADAPTER_ACTIVE_GET ) ( int, int* );
-typedef int ( *ADL_OVERDRIVE_CAPS ) (int iAdapterIndex, int *iSupported, int *iEnabled, int *iVersion);
-typedef int ( *ADL_OVERDRIVE5_THERMALDEVICES_ENUM ) (int iAdapterIndex, int iThermalControllerIndex, ADLThermalControllerInfo *lpThermalControllerInfo);
-typedef int ( *ADL_OVERDRIVE5_ODPARAMETERS_GET ) ( int iAdapterIndex, ADLODParameters * lpOdParameters );
-typedef int ( *ADL_OVERDRIVE5_TEMPERATURE_GET ) (int iAdapterIndex, int iThermalControllerIndex, ADLTemperature *lpTemperature);
-typedef int ( *ADL_OVERDRIVE5_FANSPEED_GET ) (int iAdapterIndex, int iThermalControllerIndex, ADLFanSpeedValue *lpFanSpeedValue);
-typedef int ( *ADL_OVERDRIVE5_FANSPEEDINFO_GET ) (int iAdapterIndex, int iThermalControllerIndex, ADLFanSpeedInfo *lpFanSpeedInfo);
-typedef int ( *ADL_OVERDRIVE5_ODPERFORMANCELEVELS_GET ) (int iAdapterIndex, int iDefault, ADLODPerformanceLevels *lpOdPerformanceLevels);
-typedef int ( *ADL_OVERDRIVE5_ODPARAMETERS_GET ) (int iAdapterIndex, ADLODParameters *lpOdParameters);
-typedef int ( *ADL_OVERDRIVE5_CURRENTACTIVITY_GET ) (int iAdapterIndex, ADLPMActivity *lpActivity);
-typedef int ( *ADL_OVERDRIVE5_FANSPEED_SET )(int iAdapterIndex, int iThermalControllerIndex, ADLFanSpeedValue *lpFanSpeedValue);
-typedef int ( *ADL_OVERDRIVE5_ODPERFORMANCELEVELS_SET ) (int iAdapterIndex, ADLODPerformanceLevels *lpOdPerformanceLevels);
-typedef int ( *ADL_OVERDRIVE5_POWERCONTROL_CAPS )(int iAdapterIndex, int *lpSupported);
-typedef int ( *ADL_OVERDRIVE5_POWERCONTROLINFO_GET )(int iAdapterIndex, ADLPowerControlInfo *lpPowerControlInfo);
-typedef int ( *ADL_OVERDRIVE5_POWERCONTROL_GET )(int iAdapterIndex, int *lpCurrentValue, int *lpDefaultValue);
-typedef int ( *ADL_OVERDRIVE5_POWERCONTROL_SET )(int iAdapterIndex, int iValue);
-typedef int ( *ADL_OVERDRIVE6_FANSPEED_GET )(int iAdapterIndex, ADLOD6FanSpeedInfo *lpFanSpeedInfo);
-typedef int ( *ADL_OVERDRIVE6_THERMALCONTROLLER_CAPS )(int iAdapterIndex, ADLOD6ThermalControllerCaps *lpThermalControllerCaps);
-typedef int ( *ADL_OVERDRIVE6_TEMPERATURE_GET )(int iAdapterIndex, int *lpTemperature);
-typedef int ( *ADL_OVERDRIVE6_CAPABILITIES_GET ) (int iAdapterIndex, ADLOD6Capabilities *lpODCapabilities);
-typedef int ( *ADL_OVERDRIVE6_STATEINFO_GET )(int iAdapterIndex, int iStateType, ADLOD6StateInfo *lpStateInfo);
-typedef int ( *ADL_OVERDRIVE6_CURRENTSTATUS_GET )(int iAdapterIndex, ADLOD6CurrentStatus *lpCurrentStatus);
-typedef int ( *ADL_OVERDRIVE6_POWERCONTROL_CAPS ) (int iAdapterIndex, int *lpSupported);
-typedef int ( *ADL_OVERDRIVE6_POWERCONTROLINFO_GET )(int iAdapterIndex, ADLOD6PowerControlInfo *lpPowerControlInfo);
-typedef int ( *ADL_OVERDRIVE6_POWERCONTROL_GET )(int iAdapterIndex, int *lpCurrentValue, int *lpDefaultValue);
-typedef int ( *ADL_OVERDRIVE6_FANSPEED_SET )(int iAdapterIndex, ADLOD6FanSpeedValue *lpFanSpeedValue);
-typedef int ( *ADL_OVERDRIVE6_STATE_SET )(int iAdapterIndex, int iStateType, ADLOD6StateInfo *lpStateInfo);
-typedef int ( *ADL_OVERDRIVE6_POWERCONTROL_SET )(int iAdapterIndex, int iValue);
+typedef int (*ADL_MAIN_CONTROL_CREATE)(ADL_MAIN_MALLOC_CALLBACK, int);
+typedef int (*ADL_MAIN_CONTROL_DESTROY)();
+typedef int (*ADL_ADAPTER_NUMBEROFADAPTERS_GET) (int*);
+typedef int (*ADL_ADAPTER_ADAPTERINFO_GET) (LPAdapterInfo, int);
+typedef int (*ADL_ADAPTER_ACTIVE_GET) (int, int*);
+typedef int (*ADL_OVERDRIVE_CAPS) (int iAdapterIndex, int *iSupported, int *iEnabled, int *iVersion);
+typedef int (*ADL_OVERDRIVE5_THERMALDEVICES_ENUM) (int iAdapterIndex, int iThermalControllerIndex, ADLThermalControllerInfo *lpThermalControllerInfo);
+typedef int (*ADL_OVERDRIVE5_ODPARAMETERS_GET) (int iAdapterIndex, ADLODParameters *lpOdParameters);
+typedef int (*ADL_OVERDRIVE5_TEMPERATURE_GET) (int iAdapterIndex, int iThermalControllerIndex, ADLTemperature *lpTemperature);
+typedef int (*ADL_OVERDRIVE5_FANSPEED_GET) (int iAdapterIndex, int iThermalControllerIndex, ADLFanSpeedValue *lpFanSpeedValue);
+typedef int (*ADL_OVERDRIVE5_FANSPEEDINFO_GET) (int iAdapterIndex, int iThermalControllerIndex, ADLFanSpeedInfo *lpFanSpeedInfo);
+typedef int (*ADL_OVERDRIVE5_ODPERFORMANCELEVELS_GET) (int iAdapterIndex, int iDefault, ADLODPerformanceLevels *lpOdPerformanceLevels);
+typedef int (*ADL_OVERDRIVE5_ODPARAMETERS_GET) (int iAdapterIndex, ADLODParameters *lpOdParameters);
+typedef int (*ADL_OVERDRIVE5_CURRENTACTIVITY_GET) (int iAdapterIndex, ADLPMActivity *lpActivity);
+typedef int (*ADL_OVERDRIVE5_FANSPEED_SET)(int iAdapterIndex, int iThermalControllerIndex, ADLFanSpeedValue *lpFanSpeedValue);
+typedef int (*ADL_OVERDRIVE5_ODPERFORMANCELEVELS_SET) (int iAdapterIndex, ADLODPerformanceLevels *lpOdPerformanceLevels);
+typedef int (*ADL_OVERDRIVE5_POWERCONTROL_CAPS)(int iAdapterIndex, int *lpSupported);
+typedef int (*ADL_OVERDRIVE5_POWERCONTROLINFO_GET)(int iAdapterIndex, ADLPowerControlInfo *lpPowerControlInfo);
+typedef int (*ADL_OVERDRIVE5_POWERCONTROL_GET)(int iAdapterIndex, int *lpCurrentValue, int *lpDefaultValue);
+typedef int (*ADL_OVERDRIVE5_POWERCONTROL_SET)(int iAdapterIndex, int iValue);
+typedef int (*ADL_OVERDRIVE6_FANSPEED_GET)(int iAdapterIndex, ADLOD6FanSpeedInfo *lpFanSpeedInfo);
+typedef int (*ADL_OVERDRIVE6_THERMALCONTROLLER_CAPS)(int iAdapterIndex, ADLOD6ThermalControllerCaps *lpThermalControllerCaps);
+typedef int (*ADL_OVERDRIVE6_TEMPERATURE_GET)(int iAdapterIndex, int *lpTemperature);
+typedef int (*ADL_OVERDRIVE6_CAPABILITIES_GET) (int iAdapterIndex, ADLOD6Capabilities *lpODCapabilities);
+typedef int (*ADL_OVERDRIVE6_STATEINFO_GET)(int iAdapterIndex, int iStateType, ADLOD6StateInfo *lpStateInfo);
+typedef int (*ADL_OVERDRIVE6_CURRENTSTATUS_GET)(int iAdapterIndex, ADLOD6CurrentStatus *lpCurrentStatus);
+typedef int (*ADL_OVERDRIVE6_POWERCONTROL_CAPS) (int iAdapterIndex, int *lpSupported);
+typedef int (*ADL_OVERDRIVE6_POWERCONTROLINFO_GET)(int iAdapterIndex, ADLOD6PowerControlInfo *lpPowerControlInfo);
+typedef int (*ADL_OVERDRIVE6_POWERCONTROL_GET)(int iAdapterIndex, int *lpCurrentValue, int *lpDefaultValue);
+typedef int (*ADL_OVERDRIVE6_FANSPEED_SET)(int iAdapterIndex, ADLOD6FanSpeedValue *lpFanSpeedValue);
+typedef int (*ADL_OVERDRIVE6_STATE_SET)(int iAdapterIndex, int iStateType, ADLOD6StateInfo *lpStateInfo);
+typedef int (*ADL_OVERDRIVE6_POWERCONTROL_SET)(int iAdapterIndex, int iValue);
 
-// Memory allocation function
-static void* __stdcall ADL_Main_Memory_Alloc( int iSize )
+// Memory allocation callback function
+static void*ADL_Main_Memory_Alloc(int iSize)
 {
-	void* lpBuffer = malloc( iSize );
+	void*lpBuffer = malloc(iSize);
 	return lpBuffer;
 }
 
-// Optional Memory de-allocation function
-static void __stdcall ADL_Main_Memory_Free( void** lpBuffer )
-{
-	if ( NULL != *lpBuffer )
-	{
-		free( *lpBuffer );
-		*lpBuffer = NULL;
-	}
-}
-
-#if defined(__linux__)
-// equivalent functions in linux
-static void * GetProcAddress( void * pLibrary, const char * name)
-{
-	return dlsym( pLibrary, name);
-}
-#endif
-
-
-#if defined(__linux__)
-static void Overdrive5Control(int adapterId, void* hDLL)
-#else
-static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
-#endif
+static void Overdrive5Control(int adapterId, void*hDLL)
 {
 	ADL_OVERDRIVE5_THERMALDEVICES_ENUM ADL_Overdrive5_ThermalDevices_Enum;
 	ADL_OVERDRIVE5_ODPARAMETERS_GET ADL_Overdrive5_ODParameters_Get;
@@ -134,27 +97,27 @@ static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
 	int iOverdriveVersion = 0;
 	int fanSpeedReportingMethod = 0;
 	int maxThermalControllerIndex = 0;
-	ADLODPerformanceLevels* performanceLevels = 0;
+	ADLODPerformanceLevels*performanceLevels = 0;
 	int powerControlSupported = 0;
 	ADLPowerControlInfo powerControlInfo = {0};
 	int powerControlCurrent = 0;
 	int powerControlDefault = 0;
 
 
-	ADL_Overdrive5_ThermalDevices_Enum = (ADL_OVERDRIVE5_THERMALDEVICES_ENUM) GetProcAddress (hDLL, "ADL_Overdrive5_ThermalDevices_Enum");
-	ADL_Overdrive5_ODParameters_Get = (ADL_OVERDRIVE5_ODPARAMETERS_GET) GetProcAddress (hDLL, "ADL_Overdrive5_ODParameters_Get");
-	ADL_Overdrive5_Temperature_Get = (ADL_OVERDRIVE5_TEMPERATURE_GET) GetProcAddress (hDLL, "ADL_Overdrive5_Temperature_Get");
-	ADL_Overdrive5_FanSpeed_Get = (ADL_OVERDRIVE5_FANSPEED_GET) GetProcAddress (hDLL, "ADL_Overdrive5_FanSpeed_Get");
-	ADL_Overdrive5_FanSpeedInfo_Get = (ADL_OVERDRIVE5_FANSPEEDINFO_GET ) GetProcAddress (hDLL, "ADL_Overdrive5_FanSpeedInfo_Get");
-	ADL_Overdrive5_ODPerformanceLevels_Get = (ADL_OVERDRIVE5_ODPERFORMANCELEVELS_GET) GetProcAddress (hDLL, "ADL_Overdrive5_ODPerformanceLevels_Get");
-	ADL_Overdrive5_CurrentActivity_Get = (ADL_OVERDRIVE5_CURRENTACTIVITY_GET) GetProcAddress (hDLL, "ADL_Overdrive5_CurrentActivity_Get");
-	ADL_Overdrive5_FanSpeed_Set = (ADL_OVERDRIVE5_FANSPEED_SET)GetProcAddress (hDLL, "ADL_Overdrive5_FanSpeed_Set");
-	ADL_Overdrive5_ODPerformanceLevels_Set = (ADL_OVERDRIVE5_ODPERFORMANCELEVELS_SET ) GetProcAddress(hDLL, "ADL_Overdrive5_ODPerformanceLevels_Set");
-	ADL_Overdrive5_PowerControl_Caps = (ADL_OVERDRIVE5_POWERCONTROL_CAPS) GetProcAddress (hDLL, "ADL_Overdrive5_PowerControl_Caps");
-	ADL_Overdrive5_PowerControlInfo_Get = (ADL_OVERDRIVE5_POWERCONTROLINFO_GET) GetProcAddress (hDLL, "ADL_Overdrive5_PowerControlInfo_Get");
-	ADL_Overdrive5_PowerControl_Get = (ADL_OVERDRIVE5_POWERCONTROL_GET ) GetProcAddress (hDLL, "ADL_Overdrive5_PowerControl_Get");
-	ADL_Overdrive5_PowerControl_Set = (ADL_OVERDRIVE5_POWERCONTROL_SET) GetProcAddress (hDLL, "ADL_Overdrive5_PowerControl_Set");
-	ADL_Overdrive6_State_Set = (ADL_OVERDRIVE6_STATE_SET) GetProcAddress (hDLL, "ADL_Overdrive6_State_Set");
+	ADL_Overdrive5_ThermalDevices_Enum = (ADL_OVERDRIVE5_THERMALDEVICES_ENUM) dlsym(hDLL, "ADL_Overdrive5_ThermalDevices_Enum");
+	ADL_Overdrive5_ODParameters_Get = (ADL_OVERDRIVE5_ODPARAMETERS_GET) dlsym(hDLL, "ADL_Overdrive5_ODParameters_Get");
+	ADL_Overdrive5_Temperature_Get = (ADL_OVERDRIVE5_TEMPERATURE_GET) dlsym(hDLL, "ADL_Overdrive5_Temperature_Get");
+	ADL_Overdrive5_FanSpeed_Get = (ADL_OVERDRIVE5_FANSPEED_GET) dlsym(hDLL, "ADL_Overdrive5_FanSpeed_Get");
+	ADL_Overdrive5_FanSpeedInfo_Get = (ADL_OVERDRIVE5_FANSPEEDINFO_GET) dlsym(hDLL, "ADL_Overdrive5_FanSpeedInfo_Get");
+	ADL_Overdrive5_ODPerformanceLevels_Get = (ADL_OVERDRIVE5_ODPERFORMANCELEVELS_GET) dlsym(hDLL, "ADL_Overdrive5_ODPerformanceLevels_Get");
+	ADL_Overdrive5_CurrentActivity_Get = (ADL_OVERDRIVE5_CURRENTACTIVITY_GET) dlsym(hDLL, "ADL_Overdrive5_CurrentActivity_Get");
+	ADL_Overdrive5_FanSpeed_Set = (ADL_OVERDRIVE5_FANSPEED_SET)dlsym(hDLL, "ADL_Overdrive5_FanSpeed_Set");
+	ADL_Overdrive5_ODPerformanceLevels_Set = (ADL_OVERDRIVE5_ODPERFORMANCELEVELS_SET) dlsym(hDLL, "ADL_Overdrive5_ODPerformanceLevels_Set");
+	ADL_Overdrive5_PowerControl_Caps = (ADL_OVERDRIVE5_POWERCONTROL_CAPS) dlsym(hDLL, "ADL_Overdrive5_PowerControl_Caps");
+	ADL_Overdrive5_PowerControlInfo_Get = (ADL_OVERDRIVE5_POWERCONTROLINFO_GET) dlsym(hDLL, "ADL_Overdrive5_PowerControlInfo_Get");
+	ADL_Overdrive5_PowerControl_Get = (ADL_OVERDRIVE5_POWERCONTROL_GET) dlsym(hDLL, "ADL_Overdrive5_PowerControl_Get");
+	ADL_Overdrive5_PowerControl_Set = (ADL_OVERDRIVE5_POWERCONTROL_SET) dlsym(hDLL, "ADL_Overdrive5_PowerControl_Set");
+	ADL_Overdrive6_State_Set = (ADL_OVERDRIVE6_STATE_SET) dlsym(hDLL, "ADL_Overdrive6_State_Set");
 
 	if (
 		NULL == ADL_Overdrive5_ThermalDevices_Enum ||
@@ -197,7 +160,7 @@ static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
 		{
 			ADLTemperature adlTemperature = {0};
 			adlTemperature.iSize = sizeof(ADLTemperature);
-			if (ADL_OK != ADL_Overdrive5_Temperature_Get( adapterId, iThermalControllerIndex, &adlTemperature ))
+			if (ADL_OK != ADL_Overdrive5_Temperature_Get(adapterId, iThermalControllerIndex, &adlTemperature))
 			{
 				printf("Failed to get thermal devices temperature\n");
 				exit(1);
@@ -206,7 +169,7 @@ static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
 
 
 			fanSpeedInfo.iSize = sizeof(ADLFanSpeedInfo);
-			if ( ADL_OK != ADL_Overdrive5_FanSpeedInfo_Get(adapterId, iThermalControllerIndex, &fanSpeedInfo))
+			if (ADL_OK != ADL_Overdrive5_FanSpeedInfo_Get(adapterId, iThermalControllerIndex, &fanSpeedInfo))
 			{
 				printf("Failed to get fan caps\n");
 				exit(1);
@@ -218,7 +181,7 @@ static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
 			//Set to ADL_DL_FANCTRL_SPEED_TYPE_RPM or to ADL_DL_FANCTRL_SPEED_TYPE_PERCENT to request fan speed to be returned in rounds per minute or in percentage points.
 			//Note that the call might fail if requested fan speed reporting method is not supported by the GPU.
 			fanSpeedValue.iSpeedType = fanSpeedReportingMethod;
-			if ( ADL_OK != ADL_Overdrive5_FanSpeed_Get(adapterId, iThermalControllerIndex, &fanSpeedValue))
+			if (ADL_OK != ADL_Overdrive5_FanSpeed_Get(adapterId, iThermalControllerIndex, &fanSpeedValue))
 			{
 				printf("Failed to get fan speed\n");
 				exit(1);
@@ -272,7 +235,7 @@ static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
 						printf("Failed to set new fan speed.\n");
 						exit(1);
 					}
-					if ( ADL_OK != ADL_Overdrive5_FanSpeed_Get(adapterId, iThermalControllerIndex, &fanSpeedValue))
+					if (ADL_OK != ADL_Overdrive5_FanSpeed_Get(adapterId, iThermalControllerIndex, &fanSpeedValue))
 					{
 						printf("Failed to get fan speed\n");
 						exit(1);
@@ -345,8 +308,8 @@ static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
 
 		printf("The GPU supports %d performance levels:\n", overdriveParameters.iNumberOfPerformanceLevels);
 
-		int size = sizeof(ADLODPerformanceLevels) + sizeof(ADLODPerformanceLevel) * (overdriveParameters.iNumberOfPerformanceLevels - 1);
-		void* performanceLevelsBuffer = malloc(size);
+		int size = sizeof(ADLODPerformanceLevels) + sizeof(ADLODPerformanceLevel) *(overdriveParameters.iNumberOfPerformanceLevels - 1);
+		void *performanceLevelsBuffer = malloc(size);
 		memset(performanceLevelsBuffer, 0, size);
 		performanceLevels = (ADLODPerformanceLevels*)performanceLevelsBuffer;
 		performanceLevels->iSize = size;
@@ -422,14 +385,14 @@ static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
 
 			performanceLevels->aLevels[overdriveParameters.iNumberOfPerformanceLevels - 1].iEngineClock = clocks;
 
-			if (ADL_OK != ADL_Overdrive5_ODPerformanceLevels_Set(adapterId, performanceLevels) )
+			if (ADL_OK != ADL_Overdrive5_ODPerformanceLevels_Set(adapterId, performanceLevels))
 			{
 				printf("Failed to set new Engine Clock.\n");
 				exit(1);
 			}
 			if (overdriveParameters.iNumberOfPerformanceLevels > 0) {
 				int size = sizeof(ADLODPerformanceLevels) + sizeof(ADLODPerformanceLevel) * (overdriveParameters.iNumberOfPerformanceLevels - 1);
-				void* performanceLevelsBuffer = malloc(size);
+				void *performanceLevelsBuffer = malloc(size);
 				memset(performanceLevelsBuffer, 0, size);
 				performanceLevels->iSize = size;
 
@@ -461,14 +424,14 @@ static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
 
 			performanceLevels->aLevels[overdriveParameters.iNumberOfPerformanceLevels - 1].iMemoryClock = clocks;
 
-			if (ADL_OK != ADL_Overdrive5_ODPerformanceLevels_Set(adapterId, performanceLevels) )
+			if (ADL_OK != ADL_Overdrive5_ODPerformanceLevels_Set(adapterId, performanceLevels))
 			{
 				printf("Failed to set new Memory Clock.\n");
 				exit(1);
 			}
 			if (overdriveParameters.iNumberOfPerformanceLevels > 0) {
 				int size = sizeof(ADLODPerformanceLevels) + sizeof(ADLODPerformanceLevel) * (overdriveParameters.iNumberOfPerformanceLevels - 1);
-				void* performanceLevelsBuffer = malloc(size);
+				void *performanceLevelsBuffer = malloc(size);
 				memset(performanceLevelsBuffer, 0, size);
 				performanceLevels->iSize = size;
 
@@ -513,11 +476,7 @@ static void Overdrive5Control(int adapterId, HINSTANCE hDLL)
 }
 
 
-#if defined(__linux__)
-static void Overdrive6Control(int adapterId, void* hDLL)
-#else
-static void Overdrive6Control(int adapterId, HINSTANCE hDLL)
-#endif
+static void Overdrive6Control(int adapterId, void *hDLL)
 {
 	ADLOD6FanSpeedInfo fanSpeedInfo = {0};
 	ADLOD6ThermalControllerCaps thermalControllerCaps = {0};
@@ -545,18 +504,18 @@ static void Overdrive6Control(int adapterId, HINSTANCE hDLL)
 
 
 
-	ADL_Overdrive6_FanSpeed_Get = (ADL_OVERDRIVE6_FANSPEED_GET) GetProcAddress(hDLL,"ADL_Overdrive6_FanSpeed_Get");
-	ADL_Overdrive6_ThermalController_Caps = (ADL_OVERDRIVE6_THERMALCONTROLLER_CAPS)GetProcAddress (hDLL, "ADL_Overdrive6_ThermalController_Caps");
-	ADL_Overdrive6_Temperature_Get = (ADL_OVERDRIVE6_TEMPERATURE_GET)GetProcAddress (hDLL, "ADL_Overdrive6_Temperature_Get");
-	ADL_Overdrive6_Capabilities_Get = (ADL_OVERDRIVE6_CAPABILITIES_GET)GetProcAddress(hDLL, "ADL_Overdrive6_Capabilities_Get");
-	ADL_Overdrive6_StateInfo_Get = (ADL_OVERDRIVE6_STATEINFO_GET)GetProcAddress(hDLL, "ADL_Overdrive6_StateInfo_Get");
-	ADL_Overdrive6_CurrentStatus_Get = (ADL_OVERDRIVE6_CURRENTSTATUS_GET)GetProcAddress(hDLL, "ADL_Overdrive6_CurrentStatus_Get");
-	ADL_Overdrive6_PowerControl_Caps = (ADL_OVERDRIVE6_POWERCONTROL_CAPS)GetProcAddress(hDLL, "ADL_Overdrive6_PowerControl_Caps");
-	ADL_Overdrive6_PowerControlInfo_Get = (ADL_OVERDRIVE6_POWERCONTROLINFO_GET)GetProcAddress(hDLL, "ADL_Overdrive6_PowerControlInfo_Get");
-	ADL_Overdrive6_PowerControl_Get = (ADL_OVERDRIVE6_POWERCONTROL_GET)GetProcAddress(hDLL, "ADL_Overdrive6_PowerControl_Get");
-	ADL_Overdrive6_FanSpeed_Set = (ADL_OVERDRIVE6_FANSPEED_SET)GetProcAddress(hDLL, "ADL_Overdrive6_FanSpeed_Set");
-	ADL_Overdrive6_State_Set = (ADL_OVERDRIVE6_STATE_SET)GetProcAddress(hDLL, "ADL_Overdrive6_State_Set");
-	ADL_Overdrive6_PowerControl_Set = (ADL_OVERDRIVE6_POWERCONTROL_SET) GetProcAddress(hDLL, "ADL_Overdrive6_PowerControl_Set");
+	ADL_Overdrive6_FanSpeed_Get = (ADL_OVERDRIVE6_FANSPEED_GET) dlsym(hDLL,"ADL_Overdrive6_FanSpeed_Get");
+	ADL_Overdrive6_ThermalController_Caps = (ADL_OVERDRIVE6_THERMALCONTROLLER_CAPS)dlsym(hDLL, "ADL_Overdrive6_ThermalController_Caps");
+	ADL_Overdrive6_Temperature_Get = (ADL_OVERDRIVE6_TEMPERATURE_GET)dlsym(hDLL, "ADL_Overdrive6_Temperature_Get");
+	ADL_Overdrive6_Capabilities_Get = (ADL_OVERDRIVE6_CAPABILITIES_GET)dlsym(hDLL, "ADL_Overdrive6_Capabilities_Get");
+	ADL_Overdrive6_StateInfo_Get = (ADL_OVERDRIVE6_STATEINFO_GET)dlsym(hDLL, "ADL_Overdrive6_StateInfo_Get");
+	ADL_Overdrive6_CurrentStatus_Get = (ADL_OVERDRIVE6_CURRENTSTATUS_GET)dlsym(hDLL, "ADL_Overdrive6_CurrentStatus_Get");
+	ADL_Overdrive6_PowerControl_Caps = (ADL_OVERDRIVE6_POWERCONTROL_CAPS)dlsym(hDLL, "ADL_Overdrive6_PowerControl_Caps");
+	ADL_Overdrive6_PowerControlInfo_Get = (ADL_OVERDRIVE6_POWERCONTROLINFO_GET)dlsym(hDLL, "ADL_Overdrive6_PowerControlInfo_Get");
+	ADL_Overdrive6_PowerControl_Get = (ADL_OVERDRIVE6_POWERCONTROL_GET)dlsym(hDLL, "ADL_Overdrive6_PowerControl_Get");
+	ADL_Overdrive6_FanSpeed_Set = (ADL_OVERDRIVE6_FANSPEED_SET)dlsym(hDLL, "ADL_Overdrive6_FanSpeed_Set");
+	ADL_Overdrive6_State_Set = (ADL_OVERDRIVE6_STATE_SET)dlsym(hDLL, "ADL_Overdrive6_State_Set");
+	ADL_Overdrive6_PowerControl_Set = (ADL_OVERDRIVE6_POWERCONTROL_SET) dlsym(hDLL, "ADL_Overdrive6_PowerControl_Set");
 
 
 	if (NULL == ADL_Overdrive6_FanSpeed_Get ||
@@ -582,10 +541,10 @@ static void Overdrive6Control(int adapterId, HINSTANCE hDLL)
 		exit(1);
 	}
 
-	if ( ADL_OD6_TCCAPS_FANSPEED_CONTROL ==(thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_CONTROL) ) //Verifies that fan speed controller exists on the GPU.
+	if (ADL_OD6_TCCAPS_FANSPEED_CONTROL ==(thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_CONTROL)) //Verifies that fan speed controller exists on the GPU.
 	{
-		if (ADL_OD6_TCCAPS_FANSPEED_PERCENT_READ == (thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_PERCENT_READ ) ||
-		    ADL_OD6_TCCAPS_FANSPEED_RPM_READ == (thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_RPM_READ ) )
+		if (ADL_OD6_TCCAPS_FANSPEED_PERCENT_READ == (thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_PERCENT_READ) ||
+		    ADL_OD6_TCCAPS_FANSPEED_RPM_READ == (thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_RPM_READ))
 		{
 			/*fanSpeedInfo.iSpeedType = ((thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_RPM_READ) == ADL_OD6_TCCAPS_FANSPEED_RPM_READ)?
 			  ADL_OD6_FANSPEED_TYPE_RPM :
@@ -597,7 +556,7 @@ static void Overdrive6Control(int adapterId, HINSTANCE hDLL)
 				exit(1);
 			}
 
-			if (ADL_OD6_TCCAPS_FANSPEED_PERCENT_READ ==(thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_PERCENT_READ ))
+			if (ADL_OD6_TCCAPS_FANSPEED_PERCENT_READ ==(thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_PERCENT_READ))
 				printf("Fan speed range: %d - %d%%\n", thermalControllerCaps.iFanMinPercent, thermalControllerCaps.iFanMaxPercent);
 			else
 				printf("Fan speed range: %d - %d rpm\n", thermalControllerCaps.iFanMinRPM, thermalControllerCaps.iFanMaxRPM);
@@ -609,7 +568,7 @@ static void Overdrive6Control(int adapterId, HINSTANCE hDLL)
 		}
 	}
 
-	if ( ADL_OD6_TCCAPS_THERMAL_CONTROLLER == (thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_THERMAL_CONTROLLER) ) //Verifies that thermal controller exists on the GPU.
+	if (ADL_OD6_TCCAPS_THERMAL_CONTROLLER == (thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_THERMAL_CONTROLLER)) //Verifies that thermal controller exists on the GPU.
 	{
 		if (ADL_OK != ADL_Overdrive6_Temperature_Get(adapterId, &temperature))
 		{
@@ -639,7 +598,7 @@ static void Overdrive6Control(int adapterId, HINSTANCE hDLL)
 	//Note that single ADLOD6PerformanceLevel structure is included in ADLOD6StateInfo itself. So the trailing space is needed to be large enough
 	//to hold only one extra ADLOD6PerformanceLevel
 	int size = sizeof(ADLOD6StateInfo) + sizeof(ADLOD6PerformanceLevel);
-	ADLOD6StateInfo * defaultStateInfo = (ADLOD6StateInfo*) malloc(size);
+	ADLOD6StateInfo *defaultStateInfo = (ADLOD6StateInfo*) malloc(size);
 	memset((void*)defaultStateInfo, 0, size);
 	defaultStateInfo->iNumberOfPerformanceLevels = 2;
 
@@ -651,7 +610,7 @@ static void Overdrive6Control(int adapterId, HINSTANCE hDLL)
 		exit(1);
 	}
 
-	ADLOD6StateInfo * customStateInfo = (ADLOD6StateInfo*) malloc(size);
+	ADLOD6StateInfo *customStateInfo = (ADLOD6StateInfo*) malloc(size);
 	memset((void*)customStateInfo, 0, size);
 	customStateInfo->iNumberOfPerformanceLevels = 2;
 
@@ -729,7 +688,7 @@ static void Overdrive6Control(int adapterId, HINSTANCE hDLL)
 	}
 
 
-	if ( ADL_OD6_TCCAPS_FANSPEED_CONTROL == (thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_CONTROL) &&
+	if (ADL_OD6_TCCAPS_FANSPEED_CONTROL == (thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_CONTROL) &&
 	     (
 		     ((thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_PERCENT_WRITE) == ADL_OD6_TCCAPS_FANSPEED_PERCENT_WRITE)
 		     ||
@@ -761,10 +720,10 @@ static void Overdrive6Control(int adapterId, HINSTANCE hDLL)
 				exit(1);
 			}
 
-			if ( ADL_OD6_TCCAPS_FANSPEED_CONTROL ==(thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_CONTROL) ) //Verifies that fan speed controller exists on the GPU.
+			if (ADL_OD6_TCCAPS_FANSPEED_CONTROL ==(thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_CONTROL)) //Verifies that fan speed controller exists on the GPU.
 			{
-				if (ADL_OD6_TCCAPS_FANSPEED_PERCENT_READ == (thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_PERCENT_READ ) ||
-				    ADL_OD6_TCCAPS_FANSPEED_RPM_READ == (thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_RPM_READ ) )
+				if (ADL_OD6_TCCAPS_FANSPEED_PERCENT_READ == (thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_PERCENT_READ) ||
+				    ADL_OD6_TCCAPS_FANSPEED_RPM_READ == (thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_RPM_READ))
 				{
 					/*fanSpeedInfo.iSpeedType = ((thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_RPM_READ) == ADL_OD6_TCCAPS_FANSPEED_RPM_READ)?
 					  ADL_OD6_FANSPEED_TYPE_RPM :
@@ -885,18 +844,9 @@ static void usage(char *name) {
 	exit(0);
 }
 
-#if defined(__linux__)
-int main(int argc, char* argv[])
-#else
-int main(int argc, _TCHAR* argv[])
-#endif
+int main(int argc, char *argv[])
 {
-#if defined(__linux__)
 	void *hDLL; // Handle to .so library
-#else
-	HINSTANCE hDLL; // Handle to DLL
-#endif
-
 	ADL_MAIN_CONTROL_CREATE ADL_Main_Control_Create;
 	ADL_MAIN_CONTROL_DESTROY ADL_Main_Control_Destroy;
 	ADL_ADAPTER_NUMBEROFADAPTERS_GET ADL_Adapter_NumberOfAdapters_Get;
@@ -959,15 +909,7 @@ int main(int argc, _TCHAR* argv[])
 	if (argc > 0)
 		usage(argv[0]);
 
-#if defined(__linux__)
-	hDLL = dlopen( "libatiadlxx.so", RTLD_LAZY|RTLD_GLOBAL);
-#else
-	hDLL = LoadLibrary("atiadlxx.dll");
-	if (hDLL == NULL)
-		// A 32 bit calling application on 64 bit OS will fail to LoadLIbrary.
-		// Try to load the 32 bit library (atiadlxy.dll) instead
-		hDLL = LoadLibrary("atiadlxy.dll");
-#endif
+	hDLL = dlopen("libatiadlxx.so", RTLD_LAZY|RTLD_GLOBAL);
 
 	if (NULL == hDLL)
 	{
@@ -975,14 +917,14 @@ int main(int argc, _TCHAR* argv[])
 		return 1;
 	}
 
-	ADL_Main_Control_Create = (ADL_MAIN_CONTROL_CREATE) GetProcAddress(hDLL,"ADL_Main_Control_Create");
-	ADL_Main_Control_Destroy = (ADL_MAIN_CONTROL_DESTROY) GetProcAddress(hDLL,"ADL_Main_Control_Destroy");
-	ADL_Adapter_NumberOfAdapters_Get = (ADL_ADAPTER_NUMBEROFADAPTERS_GET) GetProcAddress(hDLL,"ADL_Adapter_NumberOfAdapters_Get");
-	ADL_Adapter_AdapterInfo_Get = (ADL_ADAPTER_ADAPTERINFO_GET) GetProcAddress(hDLL,"ADL_Adapter_AdapterInfo_Get");
-	ADL_Adapter_Active_Get = (ADL_ADAPTER_ACTIVE_GET)GetProcAddress(hDLL, "ADL_Adapter_Active_Get");
-	ADL_Overdrive_Caps = (ADL_OVERDRIVE_CAPS)GetProcAddress(hDLL, "ADL_Overdrive_Caps");
+	ADL_Main_Control_Create = (ADL_MAIN_CONTROL_CREATE) dlsym(hDLL,"ADL_Main_Control_Create");
+	ADL_Main_Control_Destroy = (ADL_MAIN_CONTROL_DESTROY) dlsym(hDLL,"ADL_Main_Control_Destroy");
+	ADL_Adapter_NumberOfAdapters_Get = (ADL_ADAPTER_NUMBEROFADAPTERS_GET) dlsym(hDLL,"ADL_Adapter_NumberOfAdapters_Get");
+	ADL_Adapter_AdapterInfo_Get = (ADL_ADAPTER_ADAPTERINFO_GET) dlsym(hDLL,"ADL_Adapter_AdapterInfo_Get");
+	ADL_Adapter_Active_Get = (ADL_ADAPTER_ACTIVE_GET)dlsym(hDLL, "ADL_Adapter_Active_Get");
+	ADL_Overdrive_Caps = (ADL_OVERDRIVE_CAPS)dlsym(hDLL, "ADL_Overdrive_Caps");
 
-	if ( NULL == ADL_Main_Control_Create ||
+	if (NULL == ADL_Main_Control_Create ||
 	     NULL == ADL_Main_Control_Destroy ||
 	     NULL == ADL_Adapter_NumberOfAdapters_Get ||
 	     NULL == ADL_Adapter_AdapterInfo_Get ||
@@ -996,23 +938,23 @@ int main(int argc, _TCHAR* argv[])
 
 	// Initialize ADL. The second parameter is 1, which means:
 	// retrieve adapter information only for adapters that are physically present and enabled in the system
-	if ( ADL_OK != ADL_Main_Control_Create(ADL_Main_Memory_Alloc, 1) )
+	if (ADL_OK != ADL_Main_Control_Create(ADL_Main_Memory_Alloc, 1))
 	{
 		printf("ADL Initialization Error!\n");
 		return 1;
 	}
 
 	// Obtain the number of adapters for the system
-	if ( ADL_OK != ADL_Adapter_NumberOfAdapters_Get( &iNumberAdapters ) )
+	if (ADL_OK != ADL_Adapter_NumberOfAdapters_Get(&iNumberAdapters))
 	{
 		printf("Cannot get the number of adapters!\n");
 		return 1;
 	}
 
-	if ( 0 < iNumberAdapters )
+	if (0 < iNumberAdapters)
 	{
-		lpAdapterInfo = (LPAdapterInfo)malloc( sizeof(AdapterInfo) * iNumberAdapters );
-		memset( lpAdapterInfo,'\0', sizeof(AdapterInfo) * iNumberAdapters );
+		lpAdapterInfo = (LPAdapterInfo)malloc(sizeof(AdapterInfo) * iNumberAdapters);
+		memset(lpAdapterInfo,'\0', sizeof(AdapterInfo) * iNumberAdapters);
 
 		// Get the AdapterInfo structure for all adapters in the system
 		ADL_Adapter_AdapterInfo_Get(lpAdapterInfo, sizeof(AdapterInfo) * iNumberAdapters);
@@ -1020,12 +962,12 @@ int main(int argc, _TCHAR* argv[])
 
 	// Look for present and active adapters in the system
 	int adapterId = -1;
-	for ( i = 0; i < iNumberAdapters; i++ )
+	for (i = 0; i < iNumberAdapters; i++)
 	{
 		int adapterActive = 0;
 		AdapterInfo adapterInfo = lpAdapterInfo[ i ];
 		ADL_Adapter_Active_Get(adapterInfo.iAdapterIndex , &adapterActive);
-		if ( adapterActive && (adapter < 0 || i == adapter))
+		if (adapterActive && (adapter < 0 || i == adapter))
 		{
 			adapterId = adapterInfo.iAdapterIndex;
 
@@ -1033,7 +975,7 @@ int main(int argc, _TCHAR* argv[])
 
 			//Overdrive 5 APIs should be used if returned version indicates 5. Overdrive 6 APIs are used if 6 is returned.
 			//Overdrive 5 is supported on legacy ASICs. Newer ASICs (CIK+) should report Overdrive 6
-			if ( ADL_OK != ADL_Overdrive_Caps(adapterId, &iOverdriveSupported, &iOverdriveEnabled, &iOverdriveVersion) ) {
+			if (ADL_OK != ADL_Overdrive_Caps(adapterId, &iOverdriveSupported, &iOverdriveEnabled, &iOverdriveVersion)) {
 				printf("Can't get Overdrive capabilities\n");
 				return 1;
 			}
