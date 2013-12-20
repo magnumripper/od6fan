@@ -919,8 +919,8 @@ int main(int argc, _TCHAR* argv[])
 	else {
 		env = getenv("DISPLAY");
 		if (!env || !*env) {
-			printf("No DISPLAY nor COMPUTE variable set.\n");
-			exit(1);
+			fprintf(stderr, "Warning: No DISPLAY nor COMPUTE variable set. Defaulting to :0\n");
+			setenv("DISPLAY", ":0", 1);
 		}
 	}
 
