@@ -24,8 +24,8 @@
 #include "adl_sdk.h"
 #include "adl_structures.h"
 #include <dlfcn.h> // dyopen, dlsym, dlclose
-#include <stdlib.h>
-#include <string.h> // memeset
+#include <stdlib.h> // getenv, setenv
+#include <string.h> // memset
 #include <strings.h> // strcasecmp
 #include <unistd.h> // sleep, getopt
 
@@ -911,6 +911,18 @@ int main(int argc, _TCHAR* argv[])
 	int iOverdriveEnabled = 0;
 	int iOverdriveVersion = 0;
 	char c;
+	char *env;
+
+	env = getenv("COMPUTE");
+	if (env && *env)
+		setenv("DISPLAY", env, 1);
+	else {
+		env = getenv("DISPLAY");
+		if (!env || !*env) {
+			printf("No DISPLAY nor COMPUTE variable set.\n");
+			exit(1);
+		}
+	}
 
 	adapter = fanspeed = coreclock = memclock = mincoreclock = minmemclock = ptune = -9999;
 
@@ -960,7 +972,7 @@ int main(int argc, _TCHAR* argv[])
 	if (NULL == hDLL)
 	{
 		printf("ADL library not found!\n");
-		return 0;
+		return 1;
 	}
 
 	ADL_Main_Control_Create = (ADL_MAIN_CONTROL_CREATE) GetProcAddress(hDLL,"ADL_Main_Control_Create");
@@ -979,7 +991,7 @@ int main(int argc, _TCHAR* argv[])
 		)
 	{
 		printf("ADL's API is missing!\n");
-		return 0;
+		return 1;
 	}
 
 	// Initialize ADL. The second parameter is 1, which means:
@@ -987,14 +999,14 @@ int main(int argc, _TCHAR* argv[])
 	if ( ADL_OK != ADL_Main_Control_Create(ADL_Main_Memory_Alloc, 1) )
 	{
 		printf("ADL Initialization Error!\n");
-		return 0;
+		return 1;
 	}
 
 	// Obtain the number of adapters for the system
 	if ( ADL_OK != ADL_Adapter_NumberOfAdapters_Get( &iNumberAdapters ) )
 	{
 		printf("Cannot get the number of adapters!\n");
-		return 0;
+		return 1;
 	}
 
 	if ( 0 < iNumberAdapters )
