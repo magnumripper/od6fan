@@ -836,7 +836,7 @@ static void usage(char *name) {
 	printf("Get/set AMD GPU overdrive5/overdrive6 parameters. If -a is omitted, setting(s)\nwill apply to ALL compatible adapters.\n"
 	       "Usage: %s [option <arg>] [...]\n"
 	       "\t-a <adapter>\n"
-	       "\t-f <fanspeed>\n"
+	       "\t-f <fan speed %%>\n"
 	       "\t-C <min core clock>\n"
 	       "\t-c <max core clock>\n"
 	       "\t-M <min mem clock>\n"
