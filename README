@@ -1,0 +1,10 @@
+Overdrive5 & Overdrive6 control for AMD GPUs
+
+This software is Copyright (c) 2013 magnum, and it is hereby released
+to the general public under the following terms:  Redistribution and use in
+source and binary forms, with or without modification, are permitted.
+
+Based on Overdrive_Sample.cpp from the SDK (v6)
+
+Link with -ldl:
+gcc od6fan.c -ldl -o od6fan
