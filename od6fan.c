@@ -5,10 +5,18 @@
 // to the general public under the following terms:  Redistribution and use in
 // source and binary forms, with or without modification, are permitted.
 //
-// Based on Overdrive_Sample.cpp from the SDK (v6)
-//
 // Link with -ldl
 // gcc od6fan.c -ldl -o od6fan
+//
+// Based on Overdrive_Sample.cpp from the SDK (v6) which has the following
+// license blurb:
+/// Copyright (c) 2013 Advanced Micro Devices, Inc.
+///
+/// THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
+/// EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
+/// WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+///
+/// Author: Ilia Blank
 
 #if defined(__linux__)
 #ifndef LINUX
