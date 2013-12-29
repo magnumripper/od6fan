@@ -98,17 +98,10 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 	ADL_OVERDRIVE5_POWERCONTROLINFO_GET ADL_Overdrive5_PowerControlInfo_Get;
 	ADL_OVERDRIVE5_POWERCONTROL_GET ADL_Overdrive5_PowerControl_Get;
 	ADL_OVERDRIVE5_POWERCONTROL_SET ADL_Overdrive5_PowerControl_Set;
-	ADL_OVERDRIVE6_STATE_SET ADL_Overdrive6_State_Set;
 
-	LPAdapterInfo lpAdapterInfo = NULL;
 	int ADL_Err = ADL_ERR;
-	int iNumberAdapters = 0;
-	int iOverdriveSupported = 0;
-	int iOverdriveEnabled = 0;
 	ADLFanSpeedInfo fanSpeedInfo = {0};
-	int iOverdriveVersion = 0;
 	int fanSpeedReportingMethod = 0;
-	int maxThermalControllerIndex = 0;
 	ADLODPerformanceLevels*performanceLevels = 0;
 	int powerControlSupported = 0;
 	ADLPowerControlInfo powerControlInfo = {0};
@@ -129,7 +122,6 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 	ADL_Overdrive5_PowerControlInfo_Get = (ADL_OVERDRIVE5_POWERCONTROLINFO_GET) dlsym(hDLL, "ADL_Overdrive5_PowerControlInfo_Get");
 	ADL_Overdrive5_PowerControl_Get = (ADL_OVERDRIVE5_POWERCONTROL_GET) dlsym(hDLL, "ADL_Overdrive5_PowerControl_Get");
 	ADL_Overdrive5_PowerControl_Set = (ADL_OVERDRIVE5_POWERCONTROL_SET) dlsym(hDLL, "ADL_Overdrive5_PowerControl_Set");
-	ADL_Overdrive6_State_Set = (ADL_OVERDRIVE6_STATE_SET) dlsym(hDLL, "ADL_Overdrive6_State_Set");
 
 	if (
 		!ADL_Overdrive5_ThermalDevices_Enum ||
@@ -157,17 +149,7 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 		ADL_Err = ADL_Overdrive5_ThermalDevices_Enum(adapterId, iThermalControllerIndex, &termalControllerInfo);
 
 		if (ADL_Err == ADL_WARNING_NO_DATA)
-		{
-			maxThermalControllerIndex = iThermalControllerIndex - 1;
 			break;
-		}
-
-		if (ADL_Err == ADL_WARNING_NO_DATA)
-		{
-			// This point never reached, yes? This is as-is from the sample
-			printf("Failed to enumerate thermal devices\n");
-			exit(1);
-		}
 
 		if (termalControllerInfo.iThermalDomain == ADL_DL_THERMAL_DOMAIN_GPU)
 		{
@@ -199,19 +181,17 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 				exit(1);
 			}
 
-			printf("Thermal controller id:%d\n", iThermalControllerIndex);
+			printf("Thermal controller id: %d\n", iThermalControllerIndex);
 			printf("Current temperature: %d" DEGC "\n", temperatureInDegreesCelsius);
 			if (fanSpeedReportingMethod == ADL_DL_FANCTRL_SPEED_TYPE_RPM)
 			{
 				printf("Current fan speed: %d rpm\n", fanSpeedValue.iFanSpeed);
-				printf("Minimum fan speed: %d rpm\n", fanSpeedInfo.iMinRPM);
-				printf("Maximum fan speed: %d rpm\n", fanSpeedInfo.iMaxRPM);
+				printf("Fan speed range: %d - %d rpm\n", fanSpeedInfo.iMinRPM, fanSpeedInfo.iMaxRPM);
 			}
 			else
 			{
 				printf("Current fan speed: %d%%\n", fanSpeedValue.iFanSpeed);
-				printf("Minimum fan speed: %d%%\n", fanSpeedInfo.iMinPercent);
-				printf("Maximum fan speed: %d%%\n", fanSpeedInfo.iMaxPercent);
+				printf("Fan speed range: %d - %d%%\n", fanSpeedInfo.iMinPercent, fanSpeedInfo.iMaxPercent);
 			}
 
 			if (((fanSpeedInfo.iFlags & ADL_DL_FANCTRL_SUPPORTS_RPM_WRITE) == ADL_DL_FANCTRL_SUPPORTS_RPM_WRITE) ||
@@ -321,7 +301,7 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 		performanceLevels = (ADLODPerformanceLevels*)performanceLevelsBuffer;
 		performanceLevels->iSize = size;
 
-		if (ADL_OK != ADL_Overdrive5_ODPerformanceLevels_Get(adapterId, 1/*Getting default values first*/ , performanceLevels))
+		if (ADL_OK != ADL_Overdrive5_ODPerformanceLevels_Get(adapterId, 1 /* default values */ , performanceLevels))
 		{
 			printf("Failed to get information about supported performance levels.\n");
 			exit(1);
@@ -339,7 +319,7 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 		memset(performanceLevelsBuffer, 0, size);
 		performanceLevels->iSize = size;
 
-		if (ADL_OK != ADL_Overdrive5_ODPerformanceLevels_Get(adapterId, 0/*Getting current values first*/ , performanceLevels))
+		if (ADL_OK != ADL_Overdrive5_ODPerformanceLevels_Get(adapterId, 0 /* current values */ , performanceLevels))
 		{
 			printf("Failed to get information about supported performance levels.\n");
 			exit(1);
@@ -366,7 +346,7 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 	printf("Current Engine Clock: %d MHz\n", activity.iEngineClock / 100);
 	printf("Current Memory Clock: %d MHz\n", activity.iMemoryClock / 100);
 	printf("Current Core Voltage: %d mV\n", activity.iVddc);
-	printf("Current Performance Level: %d\n", activity.iCurrentPerformanceLevel - 1);
+	printf("Current Performance Level: %d\n", activity.iCurrentPerformanceLevel);
 
 	if (overdriveParameters.iActivityReportingSupported)
 	{
@@ -839,7 +819,6 @@ int main(int argc, char *argv[])
 	ADL_OVERDRIVE_CAPS ADL_Overdrive_Caps;
 	LPAdapterInfo lpAdapterInfo = NULL;
 	int i;
-	int ADL_Err = ADL_ERR;
 	int iNumberAdapters = 0;
 	int iOverdriveSupported = 0;
 	int iOverdriveEnabled = 0;
