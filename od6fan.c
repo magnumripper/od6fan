@@ -18,21 +18,24 @@
 ///
 /// Author: Ilia Blank
 
-#if defined(__linux__)
+#ifdef __linux__
+
 #ifndef LINUX
-#define LINUX 1 // adl headers depend on this
+#define LINUX 1 // AMD didn't feel like using __linux__ so we must define this
 #endif
+#include <stdio.h>
 #include <wchar.h>
-#include "adl_sdk.h"
-#include "adl_structures.h"
 #include <dlfcn.h> // dlopen, dlsym, dlclose
 #include <stdlib.h> // getenv, setenv
 #include <string.h> // memset
 #include <strings.h> // strcasecmp
 #include <unistd.h> // getopt
-#endif
+#include "adl_sdk.h"
+#include "adl_structures.h"
 
-#include <stdio.h>
+#else
+#error Missing Operating System
+#endif
 
 #define DEGC "\xc2\xb0" "C" // UTF-8 degree sign, Celsius
 #define ADL_WARNING_NO_DATA -100
@@ -129,20 +132,20 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 	ADL_Overdrive6_State_Set = (ADL_OVERDRIVE6_STATE_SET) dlsym(hDLL, "ADL_Overdrive6_State_Set");
 
 	if (
-		NULL == ADL_Overdrive5_ThermalDevices_Enum ||
-		NULL == ADL_Overdrive5_Temperature_Get ||
-		NULL == ADL_Overdrive5_FanSpeedInfo_Get ||
-		NULL == ADL_Overdrive5_ODPerformanceLevels_Get ||
-		NULL == ADL_Overdrive5_ODParameters_Get ||
-		NULL == ADL_Overdrive5_CurrentActivity_Get ||
-		NULL == ADL_Overdrive5_FanSpeed_Set ||
-		NULL == ADL_Overdrive5_ODPerformanceLevels_Set ||
-		NULL == ADL_Overdrive5_PowerControl_Caps ||
-		NULL == ADL_Overdrive5_PowerControlInfo_Get ||
-		NULL == ADL_Overdrive5_PowerControl_Get ||
-		NULL == ADL_Overdrive5_PowerControl_Set)
+		!ADL_Overdrive5_ThermalDevices_Enum ||
+		!ADL_Overdrive5_Temperature_Get ||
+		!ADL_Overdrive5_FanSpeedInfo_Get ||
+		!ADL_Overdrive5_ODPerformanceLevels_Get ||
+		!ADL_Overdrive5_ODParameters_Get ||
+		!ADL_Overdrive5_CurrentActivity_Get ||
+		!ADL_Overdrive5_FanSpeed_Set ||
+		!ADL_Overdrive5_ODPerformanceLevels_Set ||
+		!ADL_Overdrive5_PowerControl_Caps ||
+		!ADL_Overdrive5_PowerControlInfo_Get ||
+		!ADL_Overdrive5_PowerControl_Get ||
+		!ADL_Overdrive5_PowerControl_Set)
 	{
-		printf("ADL's API is missing!\n");
+		printf("ADL API is missing!\n");
 		exit(1);
 	}
 
@@ -161,6 +164,7 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 
 		if (ADL_Err == ADL_WARNING_NO_DATA)
 		{
+			// This point never reached, yes? This is as-is from the sample
 			printf("Failed to enumerate thermal devices\n");
 			exit(1);
 		}
@@ -174,8 +178,8 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 				printf("Failed to get thermal devices temperature\n");
 				exit(1);
 			}
-			int temperatureInDegreesCelsius = adlTemperature.iTemperature / 1000; // The temperature is returned in millidegrees Celsius.
-
+			// The temperature is returned in millidegrees Celsius.
+			int temperatureInDegreesCelsius = adlTemperature.iTemperature / 1000;
 
 			fanSpeedInfo.iSize = sizeof(ADLFanSpeedInfo);
 			if (ADL_OK != ADL_Overdrive5_FanSpeedInfo_Get(adapterId, iThermalControllerIndex, &fanSpeedInfo))
@@ -187,8 +191,7 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 			ADLFanSpeedValue fanSpeedValue = {0};
 			fanSpeedReportingMethod = ((fanSpeedInfo.iFlags & ADL_DL_FANCTRL_SUPPORTS_PERCENT_READ) == ADL_DL_FANCTRL_SUPPORTS_PERCENT_READ) ?
 				ADL_DL_FANCTRL_SPEED_TYPE_PERCENT : ADL_DL_FANCTRL_SPEED_TYPE_RPM;
-			//Set to ADL_DL_FANCTRL_SPEED_TYPE_RPM or to ADL_DL_FANCTRL_SPEED_TYPE_PERCENT to request fan speed to be returned in rounds per minute or in percentage points.
-			//Note that the call might fail if requested fan speed reporting method is not supported by the GPU.
+
 			fanSpeedValue.iSpeedType = fanSpeedReportingMethod;
 			if (ADL_OK != ADL_Overdrive5_FanSpeed_Get(adapterId, iThermalControllerIndex, &fanSpeedValue))
 			{
@@ -216,28 +219,24 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 			{
 				if (fanspeed >= 0)
 				{
-					int fanSpeed;
-
 					if ((fanSpeedInfo.iFlags & ADL_DL_FANCTRL_SUPPORTS_PERCENT_WRITE) == ADL_DL_FANCTRL_SUPPORTS_PERCENT_WRITE)
 					{
 						if (fanspeed > fanSpeedInfo.iMaxPercent || fanspeed < fanSpeedInfo.iMinPercent) {
-							printf("Error: Fan speed range %d - %d%% :\n", fanSpeedInfo.iMinPercent, fanSpeedInfo.iMaxPercent);
+							printf("Error: Fan speed range %d - %d%%\n", fanSpeedInfo.iMinPercent, fanSpeedInfo.iMaxPercent);
 							exit(1);
 						}
-						fanSpeed = fanspeed;
 					}
 					else
 					{
 						if (fanspeed > fanSpeedInfo.iMaxRPM || fanspeed < fanSpeedInfo.iMinRPM) {
-							printf("Error: Fan speed range %d - %d%% :\n", fanSpeedInfo.iMinRPM, fanSpeedInfo.iMaxRPM);
+							printf("Error: Fan speed range %d - %d rpm\n", fanSpeedInfo.iMinRPM, fanSpeedInfo.iMaxRPM);
 							exit(1);
 						}
-						fanSpeed = fanspeed;
 					}
 
 					ADLFanSpeedValue newFanSpeed = {0};
 					newFanSpeed.iSpeedType = fanSpeedReportingMethod;
-					newFanSpeed.iFanSpeed = fanSpeed;
+					newFanSpeed.iFanSpeed = fanspeed;
 
 					if (ADL_OK != ADL_Overdrive5_FanSpeed_Set(adapterId, iThermalControllerIndex, &newFanSpeed))
 					{
@@ -301,19 +300,18 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 	       overdriveParameters.sMemoryClock.iMax / 100,
 	       overdriveParameters.sMemoryClock.iStep);
 
-
 	printf("The GPU Core Voltage range is %d - %d mV with step of %d mV\n",
 	       overdriveParameters.sVddc.iMin,
 	       overdriveParameters.sVddc.iMax,
 	       overdriveParameters.sVddc.iStep);
 
-
 	if (overdriveParameters.iNumberOfPerformanceLevels > 0)
 	{
-		//Overdrive5 GPUs support few performance levels. Application can set distinct engine clocks, memory clocks, core voltage
-		//for each of the performance levels. Performance level with index 0 corresponds to lowest performance system state.
-		//Performance level with highest index corresponds to highest performance system state - 3D game playing for example.
-		//Users are usually interested in overclocking highest index performance level.
+		// Overdrive5 GPUs support few performance levels. Application can set distinct engine clocks, memory clocks, core voltage
+		// for each of the performance levels. Performance level with index 0 corresponds to lowest performance system state.
+		// Performance level with highest index corresponds to highest performance system state - GPGPU for example.
+		// Users are usually interested in overclocking highest index performance level.
+		// to same value as maximum clock for proper performance.
 
 		printf("The GPU supports %d performance levels:\n", overdriveParameters.iNumberOfPerformanceLevels);
 
@@ -357,7 +355,7 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 		}
 	}
 
-	//Getting real current values for clocks, performance levels, voltage effective in the system.
+	// Getting real current values for clocks, performance levels, voltage effective in the system.
 	ADLPMActivity activity = {0};
 	activity.iSize = sizeof(ADLPMActivity);
 	if (ADL_OK != ADL_Overdrive5_CurrentActivity_Get(adapterId, &activity))
@@ -372,13 +370,13 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 
 	if (overdriveParameters.iActivityReportingSupported)
 	{
-		printf("Current Engine Clock: %d%%\n", activity.iActivityPercent);
+		printf("Current GPU utilization: %d%%\n", activity.iActivityPercent);
 	}
 
 	if (overdriveParameters.iNumberOfPerformanceLevels > 0)
 	{
-		//High performance level is the one that affects 3d graphics during game playing.
-		//In most of the cases the applications will be interested in changing only high performance level attributes.
+		// High performance level is the one that affects GPGPU.
+		// In most of the cases the applications will be interested in changing only high performance level attributes.
 
 		if (coreclock >= 0)
 		{
@@ -484,7 +482,6 @@ static void Overdrive5Control(int adapterId, void*hDLL)
 	return;
 }
 
-
 static void Overdrive6Control(int adapterId, void *hDLL)
 {
 	ADLOD6FanSpeedInfo fanSpeedInfo = {0};
@@ -511,8 +508,6 @@ static void Overdrive6Control(int adapterId, void *hDLL)
 	ADL_OVERDRIVE6_STATE_SET ADL_Overdrive6_State_Set;
 	ADL_OVERDRIVE6_POWERCONTROL_SET ADL_Overdrive6_PowerControl_Set;
 
-
-
 	ADL_Overdrive6_FanSpeed_Get = (ADL_OVERDRIVE6_FANSPEED_GET) dlsym(hDLL,"ADL_Overdrive6_FanSpeed_Get");
 	ADL_Overdrive6_ThermalController_Caps = (ADL_OVERDRIVE6_THERMALCONTROLLER_CAPS)dlsym(hDLL, "ADL_Overdrive6_ThermalController_Caps");
 	ADL_Overdrive6_Temperature_Get = (ADL_OVERDRIVE6_TEMPERATURE_GET)dlsym(hDLL, "ADL_Overdrive6_Temperature_Get");
@@ -526,19 +521,18 @@ static void Overdrive6Control(int adapterId, void *hDLL)
 	ADL_Overdrive6_State_Set = (ADL_OVERDRIVE6_STATE_SET)dlsym(hDLL, "ADL_Overdrive6_State_Set");
 	ADL_Overdrive6_PowerControl_Set = (ADL_OVERDRIVE6_POWERCONTROL_SET) dlsym(hDLL, "ADL_Overdrive6_PowerControl_Set");
 
-
-	if (NULL == ADL_Overdrive6_FanSpeed_Get ||
-	    NULL == ADL_Overdrive6_ThermalController_Caps ||
-	    NULL == ADL_Overdrive6_Temperature_Get ||
-	    NULL == ADL_Overdrive6_Capabilities_Get ||
-	    NULL == ADL_Overdrive6_StateInfo_Get ||
-	    NULL == ADL_Overdrive6_CurrentStatus_Get ||
-	    NULL == ADL_Overdrive6_PowerControl_Caps ||
-	    NULL == ADL_Overdrive6_PowerControlInfo_Get ||
-	    NULL == ADL_Overdrive6_PowerControl_Get ||
-	    NULL == ADL_Overdrive6_FanSpeed_Set ||
-	    NULL == ADL_Overdrive6_State_Set ||
-	    NULL == ADL_Overdrive6_PowerControl_Set)
+	if (!ADL_Overdrive6_FanSpeed_Get ||
+	    !ADL_Overdrive6_ThermalController_Caps ||
+	    !ADL_Overdrive6_Temperature_Get ||
+	    !ADL_Overdrive6_Capabilities_Get ||
+	    !ADL_Overdrive6_StateInfo_Get ||
+	    !ADL_Overdrive6_CurrentStatus_Get ||
+	    !ADL_Overdrive6_PowerControl_Caps ||
+	    !ADL_Overdrive6_PowerControlInfo_Get ||
+	    !ADL_Overdrive6_PowerControl_Get ||
+	    !ADL_Overdrive6_FanSpeed_Set ||
+	    !ADL_Overdrive6_State_Set ||
+	    !ADL_Overdrive6_PowerControl_Set)
 	{
 		printf("ADL's API is missing!\n");
 		exit(1);
@@ -550,15 +544,11 @@ static void Overdrive6Control(int adapterId, void *hDLL)
 		exit(1);
 	}
 
-	if (ADL_OD6_TCCAPS_FANSPEED_CONTROL ==(thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_CONTROL)) //Verifies that fan speed controller exists on the GPU.
+	if (ADL_OD6_TCCAPS_FANSPEED_CONTROL ==(thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_CONTROL)) // Verifies that fan speed controller exists on the GPU.
 	{
 		if (ADL_OD6_TCCAPS_FANSPEED_PERCENT_READ == (thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_PERCENT_READ) ||
 		    ADL_OD6_TCCAPS_FANSPEED_RPM_READ == (thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_RPM_READ))
 		{
-			/*fanSpeedInfo.iSpeedType = ((thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_RPM_READ) == ADL_OD6_TCCAPS_FANSPEED_RPM_READ)?
-			  ADL_OD6_FANSPEED_TYPE_RPM :
-			  ADL_OD6_FANSPEED_TYPE_PERCENT;*/
-
 			if (ADL_OK != ADL_Overdrive6_FanSpeed_Get(adapterId, &fanSpeedInfo))
 			{
 				printf("Failed to get fan speed info\n");
@@ -577,15 +567,15 @@ static void Overdrive6Control(int adapterId, void *hDLL)
 		}
 	}
 
-	if (ADL_OD6_TCCAPS_THERMAL_CONTROLLER == (thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_THERMAL_CONTROLLER)) //Verifies that thermal controller exists on the GPU.
+	if (ADL_OD6_TCCAPS_THERMAL_CONTROLLER == (thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_THERMAL_CONTROLLER)) // Verifies that thermal controller exists on the GPU.
 	{
 		if (ADL_OK != ADL_Overdrive6_Temperature_Get(adapterId, &temperature))
 		{
 			printf("Failed to get GPU temperature\n");
 			exit(1);
 		}
-
-		printf("GPU temperature is %d" DEGC "\n", temperature / 1000); //The temperature is returned in mili-degree of Celsius
+		// The temperature is returned in mili-degree of Celsius
+		printf("GPU temperature is %d" DEGC "\n", temperature / 1000);
 	}
 
 	if (ADL_OK != ADL_Overdrive6_Capabilities_Get(adapterId, &od6Capabilities))
@@ -594,25 +584,25 @@ static void Overdrive6Control(int adapterId, void *hDLL)
 		exit(1);
 	}
 
-	//Overdrive 6 uses performance levels to communicate effective minimum and maximum values for memory and GPU clocks
-	//either requested by user or preconfigured by the driver defaults. Thus only 2 performance levels should be returned.
+	// Overdrive 6 uses performance levels to communicate effective minimum and maximum values for memory and GPU clocks
+	// either requested by user or preconfigured by the driver defaults. Thus only 2 performance levels should be returned.
 	if (od6Capabilities.iNumberOfPerformanceLevels != 2)
 	{
 		printf("Unexpected number of performance levels\n");
 		exit(1);
 	}
 
-	//Calculating buffer needed to contain performance levels information returned by ADL_Overdrive6_StateInfo_Get.
-	//The buffer contains instance of ADLOD6StateInfo at the beginning and trailing space needed to include extra ADLOD6PerformanceLevel structures.
-	//Note that single ADLOD6PerformanceLevel structure is included in ADLOD6StateInfo itself. So the trailing space is needed to be large enough
-	//to hold only one extra ADLOD6PerformanceLevel
+	// Calculating buffer needed to contain performance levels information returned by ADL_Overdrive6_StateInfo_Get.
+	// The buffer contains instance of ADLOD6StateInfo at the beginning and trailing space needed to include extra ADLOD6PerformanceLevel structures.
+	// Note that single ADLOD6PerformanceLevel structure is included in ADLOD6StateInfo itself. So the trailing space is needed to be large enough
+	// to hold only one extra ADLOD6PerformanceLevel
 	int size = sizeof(ADLOD6StateInfo) + sizeof(ADLOD6PerformanceLevel);
 	ADLOD6StateInfo *defaultStateInfo = (ADLOD6StateInfo*) malloc(size);
 	memset((void*)defaultStateInfo, 0, size);
 	defaultStateInfo->iNumberOfPerformanceLevels = 2;
 
-	//Getting default effective minimum and maximum values for memory and GPU clocks.
-	//The only state supported by Overdrive6 is "Performance".
+	// Getting default effective minimum and maximum values for memory and GPU clocks.
+	// The only state supported by Overdrive6 is "Performance".
 	if (ADL_OK != ADL_Overdrive6_StateInfo_Get(adapterId, ADL_OD6_GETSTATEINFO_DEFAULT_PERFORMANCE, defaultStateInfo))
 	{
 		printf("Failed to get default performance levels info\n");
@@ -623,8 +613,6 @@ static void Overdrive6Control(int adapterId, void *hDLL)
 	memset((void*)customStateInfo, 0, size);
 	customStateInfo->iNumberOfPerformanceLevels = 2;
 
-	//Getting default effective minimum and maximum values for memory and GPU clocks.
-	//The only state supported by Overdrive6 is "Performance".
 	if (ADL_OK != ADL_Overdrive6_StateInfo_Get(adapterId, ADL_OD6_GETSTATEINFO_CUSTOM_PERFORMANCE, customStateInfo))
 	{
 		printf("Failed to get custom performance levels info\n");
@@ -664,11 +652,10 @@ static void Overdrive6Control(int adapterId, void *hDLL)
 	printf("Current number of PCI bus lanes: %d\n" , currentStatus.iCurrentBusLanes);
 	printf("Current PCI bus speed: %d\n" , currentStatus.iCurrentBusSpeed);
 
-
-	//First we need to verify that ASIC supports monitoring of its current activities before we attempt to retrieve its current clock
+	// First we need to verify that ASIC supports monitoring of its current activities before we attempt to retrieve its current clock
 	if ((od6Capabilities.iCapabilities & ADL_OD6_CAPABILITY_GPU_ACTIVITY_MONITOR) == ADL_OD6_CAPABILITY_GPU_ACTIVITY_MONITOR)
 	{
-		printf("Current GPU activity level: %d%%\n" , currentStatus.iActivityPercent);
+		printf("Current GPU utilization: %d%%\n" , currentStatus.iActivityPercent);
 	}
 
 	if (ADL_OK != ADL_Overdrive6_PowerControl_Caps(adapterId, &powerControlSupported))
@@ -695,7 +682,6 @@ static void Overdrive6Control(int adapterId, void *hDLL)
 		printf("Power Control current level: %d\n", powerControlCurrent);
 		printf("Power Control default level: %d\n", powerControlDefault);
 	}
-
 
 	if (ADL_OD6_TCCAPS_FANSPEED_CONTROL == (thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_CONTROL) &&
 	     (
@@ -729,15 +715,11 @@ static void Overdrive6Control(int adapterId, void *hDLL)
 				exit(1);
 			}
 
-			if (ADL_OD6_TCCAPS_FANSPEED_CONTROL ==(thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_CONTROL)) //Verifies that fan speed controller exists on the GPU.
+			if (ADL_OD6_TCCAPS_FANSPEED_CONTROL ==(thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_CONTROL)) // Verifies that fan speed controller exists on the GPU.
 			{
 				if (ADL_OD6_TCCAPS_FANSPEED_PERCENT_READ == (thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_PERCENT_READ) ||
 				    ADL_OD6_TCCAPS_FANSPEED_RPM_READ == (thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_RPM_READ))
 				{
-					/*fanSpeedInfo.iSpeedType = ((thermalControllerCaps.iCapabilities & ADL_OD6_TCCAPS_FANSPEED_RPM_READ) == ADL_OD6_TCCAPS_FANSPEED_RPM_READ)?
-					  ADL_OD6_FANSPEED_TYPE_RPM :
-					  ADL_OD6_FANSPEED_TYPE_PERCENT;*/
-
 					if (ADL_OK != ADL_Overdrive6_FanSpeed_Get(adapterId, &fanSpeedInfo))
 					{
 						printf("Failed to get new fan speed info\n");
@@ -753,16 +735,15 @@ static void Overdrive6Control(int adapterId, void *hDLL)
 		}
 	}
 
+	// ADL_Overdrive6_State_Set allows changing the effective range of memory and core clocks by setting performance level 0 clocks to desired
+	// minimum value and setting performance level 1 clocks to desired maximum. In theory user rarely needs to change minimum value. In
+	// reality, R9 290X currently seems to underclock seriously even at low temperatures unless you bump the minimum to same as maximum.
 	if (ADL_OD6_CAPABILITY_SCLK_CUSTOMIZATION == (od6Capabilities.iCapabilities & ADL_OD6_CAPABILITY_SCLK_CUSTOMIZATION))
 	{
 		if (coreclock >= 0 || mincoreclock >= 0)
 		{
 			if (mincoreclock < 0) mincoreclock = customStateInfo->aLevels[0].iEngineClock / 100;
 			if (coreclock < 0) coreclock = customStateInfo->aLevels[1].iEngineClock / 100;
-			//ADL_Overdrive6_State_Set allows changing the effective range of memory and core clocks by setting performance level 0 clocks to desired
-			//minimum value and setting performance level 1 clocks to desired maximum. In reality user rarely needs to change minimum value.
-			//Therefore this example demonstrates only changing the upper range boundary. The upper range value has to be greater then current
-			//minimum value (stored in performance level 0), but less than highest clock supported by the ASIC
 			if (mincoreclock < od6Capabilities.sEngineClockRange.iMin / 100 || coreclock > od6Capabilities.sEngineClockRange.iMax / 100) {
 				printf("Error: Core clock range %d - %d MHz\n", od6Capabilities.sEngineClockRange.iMin / 100, od6Capabilities.sEngineClockRange.iMax / 100);
 				exit(1);
@@ -779,18 +760,11 @@ static void Overdrive6Control(int adapterId, void *hDLL)
 			if (ADL_OD6_CAPABILITY_SCLK_CUSTOMIZATION == (od6Capabilities.iCapabilities & ADL_OD6_CAPABILITY_SCLK_CUSTOMIZATION))
 				printf("New effective range of GPU core clock: %d - %d MHz\n", customStateInfo->aLevels[0].iEngineClock / 100, customStateInfo->aLevels[1].iEngineClock / 100);
 		}
-	}
 
-	if (ADL_OD6_CAPABILITY_MCLK_CUSTOMIZATION == (od6Capabilities.iCapabilities & ADL_OD6_CAPABILITY_MCLK_CUSTOMIZATION))
-	{
 		if (memclock >= 0 || minmemclock >= 0)
 		{
 			if (minmemclock < 0) minmemclock = customStateInfo->aLevels[0].iMemoryClock / 100;
 			if (memclock < 0) memclock = customStateInfo->aLevels[1].iMemoryClock / 100;
-			//ADL_Overdrive6_State_Set allows changing the effective range of memory and core clocks by setting performance level 0 clocks to desired
-			//minimum value and setting performance level 1 clocks to desired maximum. In reality user rarely needs to change minimum value.
-			//Therefore this example demonstrates only changing the upper range boundary. The upper range value has to be greater then current
-			//minimum value (stored in performance level 0), but less than highest clock supported by the ASIC
 			if (minmemclock < od6Capabilities.sMemoryClockRange.iMin / 100 || memclock > od6Capabilities.sMemoryClockRange.iMax / 100) {
 				printf("Error: Memory clock range %d - %d MHz\n", od6Capabilities.sMemoryClockRange.iMin / 100, od6Capabilities.sMemoryClockRange.iMax / 100);
 				exit(1);
@@ -843,13 +817,14 @@ static void Overdrive6Control(int adapterId, void *hDLL)
 static void usage(char *name) {
 	printf("Get/set AMD GPU overdrive5/overdrive6 parameters. If -a is omitted, setting(s)\nwill apply to ALL compatible adapters.\n"
 	       "Usage: %s [option <arg>] [...]\n"
-	       "\t-a <adapter>\n"
+	       "\t-a <adapter> (otherwise defaults to ALL adapters)\n"
 	       "\t-f <fan speed %%>\n"
 	       "\t-C <min core clock>\n"
 	       "\t-c <max core clock>\n"
 	       "\t-M <min mem clock>\n"
 	       "\t-m <max mem clock>\n"
-	       "\t-p <powertune level>\n", name);
+	       "\t-p <powertune level>\n",
+	       name);
 	exit(0);
 }
 
@@ -872,6 +847,7 @@ int main(int argc, char *argv[])
 	char c;
 	char *env;
 
+	// Prefer COMPUTE over DISPLAY and if all else fails, assume :0
 	env = getenv("COMPUTE");
 	if (env && *env)
 		setenv("DISPLAY", env, 1);
@@ -920,7 +896,7 @@ int main(int argc, char *argv[])
 
 	hDLL = dlopen("libatiadlxx.so", RTLD_LAZY|RTLD_GLOBAL);
 
-	if (NULL == hDLL)
+	if (!hDLL)
 	{
 		printf("ADL library not found!\n");
 		return 1;
@@ -933,12 +909,12 @@ int main(int argc, char *argv[])
 	ADL_Adapter_Active_Get = (ADL_ADAPTER_ACTIVE_GET)dlsym(hDLL, "ADL_Adapter_Active_Get");
 	ADL_Overdrive_Caps = (ADL_OVERDRIVE_CAPS)dlsym(hDLL, "ADL_Overdrive_Caps");
 
-	if (NULL == ADL_Main_Control_Create ||
-	     NULL == ADL_Main_Control_Destroy ||
-	     NULL == ADL_Adapter_NumberOfAdapters_Get ||
-	     NULL == ADL_Adapter_AdapterInfo_Get ||
-	     NULL == ADL_Adapter_Active_Get ||
-	     NULL == ADL_Overdrive_Caps
+	if (!ADL_Main_Control_Create ||
+	     !ADL_Main_Control_Destroy ||
+	     !ADL_Adapter_NumberOfAdapters_Get ||
+	     !ADL_Adapter_AdapterInfo_Get ||
+	     !ADL_Adapter_Active_Get ||
+	     !ADL_Overdrive_Caps
 		)
 	{
 		printf("ADL's API is missing!\n");
@@ -947,20 +923,20 @@ int main(int argc, char *argv[])
 
 	// Initialize ADL. The second parameter is 1, which means:
 	// retrieve adapter information only for adapters that are physically present and enabled in the system
-	if (ADL_OK != ADL_Main_Control_Create(ADL_Main_Memory_Alloc, 1))
+	if (ADL_Main_Control_Create(ADL_Main_Memory_Alloc, 1) != ADL_OK)
 	{
 		printf("ADL Initialization Error!\n");
 		return 1;
 	}
 
 	// Obtain the number of adapters for the system
-	if (ADL_OK != ADL_Adapter_NumberOfAdapters_Get(&iNumberAdapters))
+	if (ADL_Adapter_NumberOfAdapters_Get(&iNumberAdapters) != ADL_OK)
 	{
 		printf("Cannot get the number of adapters!\n");
 		return 1;
 	}
 
-	if (0 < iNumberAdapters)
+	if (iNumberAdapters > 0)
 	{
 		lpAdapterInfo = (LPAdapterInfo)malloc(sizeof(AdapterInfo) * iNumberAdapters);
 		memset(lpAdapterInfo,'\0', sizeof(AdapterInfo) * iNumberAdapters);
@@ -969,7 +945,7 @@ int main(int argc, char *argv[])
 		ADL_Adapter_AdapterInfo_Get(lpAdapterInfo, sizeof(AdapterInfo) * iNumberAdapters);
 	}
 
-	// Look for present and active adapters in the system
+	// Consider present *and* active adapters in the system
 	int adapterId = -1;
 	for (i = 0; i < iNumberAdapters; i++)
 	{
@@ -982,9 +958,7 @@ int main(int argc, char *argv[])
 
 			printf("\nAdapter %d (%d) ", i, adapterId);
 
-			//Overdrive 5 APIs should be used if returned version indicates 5. Overdrive 6 APIs are used if 6 is returned.
-			//Overdrive 5 is supported on legacy ASICs. Newer ASICs (CIK+) should report Overdrive 6
-			if (ADL_OK != ADL_Overdrive_Caps(adapterId, &iOverdriveSupported, &iOverdriveEnabled, &iOverdriveVersion)) {
+			if (ADL_Overdrive_Caps(adapterId, &iOverdriveSupported, &iOverdriveEnabled, &iOverdriveVersion) != ADL_OK) {
 				printf("Can't get Overdrive capabilities\n");
 				return 1;
 			}
@@ -1005,7 +979,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (-1 == adapterId)
+	if (adapterId == -1)
 	{
 		printf("Cannot find any active AMD adapter\n");
 		return 1;
