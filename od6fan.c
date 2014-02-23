@@ -831,10 +831,8 @@ int main(int argc, char *argv[])
 		setenv("DISPLAY", env, 1);
 	else {
 		env = getenv("DISPLAY");
-		if (!env || !*env) {
-			fprintf(stderr, "Warning: No DISPLAY nor COMPUTE variable set. Defaulting to :0\n");
+		if (!env || !*env)
 			setenv("DISPLAY", ":0", 1);
-		}
 	}
 
 	adapter = fanspeed = coreclock = memclock = mincoreclock = minmemclock = ptune = -9999;
