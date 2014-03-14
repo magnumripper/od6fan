@@ -825,13 +825,15 @@ int main(int argc, char *argv[])
 	char c;
 	char *env;
 
-	// Prefer COMPUTE over DISPLAY and if all else fails, assume :0
+	// Prefer COMPUTE over DISPLAY and lacking both, assume :0
 	env = getenv("COMPUTE");
 	if (env && *env)
 		setenv("DISPLAY", env, 1);
 	else {
+		// We assume that 10 dot something is X11
+		// forwarding so we override that too.
 		env = getenv("DISPLAY");
-		if (!env || !*env)
+		if (!env || !*env || strstr(env, ":10."))
 			setenv("DISPLAY", ":0", 1);
 	}
 
